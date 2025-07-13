@@ -413,7 +413,7 @@
         "answer": "<ol><li>micro frontend is just like microservcie in backend, it splits the frontend into multiple module based applications</li></ol><p>TO communicate</p><ol><li>Use parameter based URL to carry data</li><li>Use events, one module emit events, another module subscribe to the events</li><li>Use shared data store, like NgRx. </li></ol>",
         "keyword": "Angular",
         "frequency": 5,
-        "top": true
+        "top": false
     },
     {
         "id": 1,
@@ -973,7 +973,7 @@
         "answer": "<p>ConcurrentHashMap is thread safe and it has better performance then SynchornizedMap</p><p>ConcurrentHashMap divides its internal buckets into 16 segments. When 1 thread visits the map, it will lock that segement, and the other threads can still visit other segments. </p><p>The SyncrhonziedMap will lock the entire map, so its performance is not as good as ConcurrentHashMap</p>",
         "keyword": "Java",
         "frequency": 2,
-        "top": false
+        "top": true
     },
     {
         "id": 117,
@@ -1194,7 +1194,15 @@
     {
         "id": 448,
         "question": "What is proxy design pattern",
-        "answer": null,
+        "answer": "<p>Proxy design pattern is to add one additional proxy layer to the target object so we can process more logic.</p><p>one good example is: if we have one API call, but we can add a proxy to do Rate Limiting, Lazy Initialization, Cache etc.</p><p>If we have a weather API. we add proxy to cache the api. when we call the weather api, we call the proxy class instead, if the data is available in cache, we can return directly. </p>",
+        "keyword": "Java",
+        "frequency": 4,
+        "top": true
+    },
+    {
+        "id": 455,
+        "question": "What is difference between synchronized and ReentrantLock?",
+        "answer": "<p>Java has two types of locks, implicit and explicit. Synchronized is implicit lock which java controls everything, as a developer, we just add synchronized keyword.  ReentrantLock is explicit lock which we have more control on the locked object.</p><p>Things we can do with ReentrantLock: </p><ul><li>TryLock -- a thread can try lock object, if it returns true, it will acquire lock, otherwise, it will keep waiting</li><li>Fair Lock -- if there are many threads waiting, for Fair lock, the longest waiting thread will get the lock, FIFO order.   ReentrantLock rl = new ReentrantLock(true);</li><li>Lock Interrupt -- thread can try to interrupt the lock</li><li>access count -- It can count how many times a thread has gain access. Count can increase and decrease, when it decrease to 0 means the thread unlocked the object.</li></ul><pre class=\"ql-syntax\" spellcheck=\"false\">class Test\n{\n    private static int count = 0; \n  \n    private static ReentrantLock lock = new ReentrantLock();\n\n    public static void increment()\n    {\n        lock.lock();  //lock it\n        try \n        {\n            count++;\n        }\n      \n      finally\n         { \n            lock.unlock();  //need to release the lock\n         }\n    }\n</pre><p><br></p>",
         "keyword": "Java",
         "frequency": 4,
         "top": true
@@ -1250,7 +1258,7 @@
     {
         "id": 336,
         "question": "How to prevent duplicate message in kafka",
-        "answer": "<p>Kafka has consumer and producer. To prevent duplicate, we should try on both side [<a href=\"https://i-topolev-vladimir.medium.com/how-to-handle-duplicate-messages-and-message-ordering-in-kafka-82e2fef82025\" rel=\"noopener noreferrer\" target=\"_blank\">reference</a>]</p><p>Producer:</p><ul><li>Kakfa has many producers and each producer can send many messages, to make each message unique, we need to assign producer an ID and each message an ID, so the producer ID + message ID combination will be unique.</li></ul><p>Consumer:</p><ul><li><strong>enable.auto.commit </strong>should be set to false. enable.auto.commit = true means kafka will auto commit the offset even if consumer failed to process the message, this could cause message loss.</li><li>Consumer has 2 ways to prevent duplicate messages, 1) it can check the message unique id, if found that id is already processed, it will ignore it. 2) it can make its opreation idempotent, just like put, update once and twice will yield same results.</li></ul><p>One more thing, if each message is sent only once, but the consumer is down, then we could have message lost, so we need to configure<strong> auto.offset.reset</strong>, this is a parameter to decide when consumer is down, whether we should restart reading from last failed position (latest - default) or beginning of the partition (<strong>earliest</strong>).</p>",
+        "answer": "<p>Kafka has consumer and producer. To prevent duplicate, we should try on both side [<a href=\"https://i-topolev-vladimir.medium.com/how-to-handle-duplicate-messages-and-message-ordering-in-kafka-82e2fef82025\" rel=\"noopener noreferrer\" target=\"_blank\">reference</a>]</p><p>Producer:</p><ul><li>Kakfa has many producers and each producer can send many messages, to make each message unique, we need to assign producer an ID and each message an ID, so the producer ID + message ID combination will be unique.</li></ul><p>Consumer:</p><ul><li>Consumer has 2 ways to prevent duplicate messages, 1) it can check the message unique id, if found that id is already processed, it will ignore it. 2) it can make its opreation idempotent, just like put, update once and twice will yield same results.</li></ul><p><br></p>",
         "keyword": "Kafka",
         "frequency": 5,
         "top": true
@@ -1282,7 +1290,15 @@
     {
         "id": 450,
         "question": "What is kafka dead letter queue and how do you handle it?",
-        "answer": null,
+        "answer": "<p>Dead Letter Queue - is a queue to process failed messages or lost messages or poison failures.</p><p>Usually we use a separate topic to handle messages in DLQ</p>",
+        "keyword": "Kafka",
+        "frequency": 4,
+        "top": true
+    },
+    {
+        "id": 456,
+        "question": "What is kafka poison pill or poison failure",
+        "answer": "<p>A poison pill is a messages that \"always\" fail when consumed.</p><p>Reason for poison pill: caused by the incompatible serialization and deserialization between producer and consumer sides</p><p>Consequence: it can cause consumer stop working because of deserialization error</p><p>Prevent: 1) make sure serialization and deserialization match; 2) validate message before pushing to kafka; 3) use DLQ to handle posion pill separately;  etc....</p>",
         "keyword": "Kafka",
         "frequency": 4,
         "top": true
@@ -1290,7 +1306,7 @@
     {
         "id": 145,
         "question": "What application details are stored in service registry?",
-        "answer": "<h1> Service Registry and Service Discovery --- Erueka</h1><p><br></p><ol><li>Service Name: The name or identifier of the service. (This helps other services in the system locate and communicate with the desired service)</li><li>Service EndPoints: The IP addresses and port number where the service currently hosing on.</li><li>Health Status: Information about the health and availability of the service. (whether the services is up and running)</li></ol><p><br></p><p><br></p>",
+        "answer": "<h2>Service Registry and Service Discovery --- Erueka</h2><p><br></p><ol><li>Service Name: The name or identifier of the service. (This helps other services in the system locate and communicate with the desired service)</li><li>Service EndPoints: The IP addresses and port number where the service currently hosing on.</li><li>Health Status: Information about the health and availability of the service. (whether the services is up and running)</li></ol><p><br></p>",
         "keyword": "Microservice",
         "frequency": 0,
         "top": false
@@ -1302,6 +1318,30 @@
         "keyword": "Microservice",
         "frequency": 5,
         "top": true
+    },
+    {
+        "id": 147,
+        "question": "How to split a monolithic application into microservices.",
+        "answer": "<p>The strategies to split monolithic application into microservices are always challenging. But there are some most common used ways to consider:</p><ol><li>Piece by Piece</li></ol><ul><li class=\"ql-indent-1\">Find one small independent part and replace it with an independent microservice. Route traffic to this new service to fully replace the old part. Keep doing this util whole application is splitted.</li></ul><ol><li>Domain Driven Design - split by domain</li></ol><ul><li class=\"ql-indent-1\">Identify different domains of the application, like order, invoice, shipping, delivery, user, rewards etc. Then develop each domain based microservice.</li><li class=\"ql-indent-1\">Good thing is each domain is very clear, but bad thing is each domain could involve multiple databases. (like Order service may need to access order-related database tables and rewards-related database tables and user-reviews related database tabless)</li></ul><ol><li>Data Driven Design - split by database tables</li></ol><ul><li class=\"ql-indent-1\">Create a service for each database. Difference services will NOT share databases. (like Order service can only access order-related database tables, it cannot access other databases tables and other microservices cannot access order-related database tables either)</li><li class=\"ql-indent-1\">Good thing is very clear on data layer, but thing is it might break business logic into many pieces.</li></ul>",
+        "keyword": "Microservice",
+        "frequency": 5,
+        "top": true
+    },
+    {
+        "id": 148,
+        "question": "What microservice tech stacks did your team use?",
+        "answer": "<p>Most common used for enterprise is the one know:</p><ul><li>Framework: Spring Cloud with Spring boot // Service Discovery: Eureak, Consul // API Gateway: Zuul // Circuit Breaker: Resilience4j //Load Balancer: Ribbon, Spring Cloud LoadBalancer// Messaging: Kafka, RabbitMQ // Container: Docker, K8S // Monitor: Prometheus, Grafana, Micrometer </li></ul><p>AWS based:</p><ul><li>Framework: Spring boot or Quarkus or Micronaut //Service Discovery: AWS App Mesh // API Gateway: AWS API Gateway // Circuit Beaker: API Gateway with Throttling &amp; Failover //Load Balancer: AWS Load Balancer ALB //Messaging: SQS //Container: ECS Fargate or EKS // Monitor: CloudWatch, X-Ray</li></ul><p><br></p>",
+        "keyword": "Microservice",
+        "frequency": 2,
+        "top": false
+    },
+    {
+        "id": 150,
+        "question": "Advantage and Disadvantage of microservice",
+        "answer": "<p>Advantage:</p><ol><li>Easy to scale - like you can add load balancer to busy services</li><li>Fault tolerance - as you can add replications</li><li>Better organization - each team responsible for some services</li></ol><p>Disadvantage:</p><ol><li>Latency - communication between services increase time and latency</li><li>Data inconsistence - data updated in one service may not get reflected in another service, could cause potential data inconsistency - need distributed cache to handle it.</li><li>Operational cost - need more deployment scripts, service discovery, servers, logging etc.</li></ol>",
+        "keyword": "Microservice",
+        "frequency": 4,
+        "top": false
     },
     {
         "id": 152,
@@ -1320,97 +1360,41 @@
         "top": true
     },
     {
-        "id": 191,
-        "question": "How to communicate between microservices",
-        "answer": "<p>Sync: use RestTemplate or FeignClient </p><p>Async: use message queue, like Kafka, ActiveMQ, RabbitMQ etc</p>",
-        "keyword": "Microservice",
-        "frequency": 5,
-        "top": true
-    },
-    {
-        "id": 147,
-        "question": "Explain microservice",
-        "answer": null,
-        "keyword": "Microservice",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 148,
-        "question": "What microservice did your team use?",
-        "answer": null,
-        "keyword": "Microservice",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 150,
-        "question": "Disadvantage of microservice",
-        "answer": null,
-        "keyword": "Microservice",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 151,
-        "question": "Synchronous communication and A-Synchrounous commuication in microservice-> RestTemplate or feign and message queue like Kafka",
-        "answer": null,
-        "keyword": "Microservice",
-        "frequency": 0,
-        "top": false
-    },
-    {
         "id": 154,
-        "question": "vertically and horizontally",
-        "answer": null,
+        "question": "what is scale vertically and horizontally",
+        "answer": "<p>Vertical is to add more capacity on hardware itself, so we can add more memory etc</p><p>Horizontal is with load balancer, we can add more copies of the services and use load balancer to distribute</p>",
         "keyword": "Microservice",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 155,
-        "question": "How to deploy microservices to AWS EC2?",
-        "answer": null,
-        "keyword": "Microservice",
-        "frequency": 0,
+        "frequency": 1,
         "top": false
     },
     {
         "id": 156,
         "question": "What type of application is suitable for microservice architecture? What type is not?",
-        "answer": null,
+        "answer": "<p>Microservice is usually used for application that has many business domains and many customers.</p><p>When it has many business domains, to maintain and develop, we better use microservices so we can handle them independently.</p><p>When there are many customers, we need to increase load capacity, so we need load balancer etc which is more often in microservcies.</p>",
         "keyword": "Microservice",
-        "frequency": 0,
+        "frequency": 2,
         "top": false
     },
     {
         "id": 157,
         "question": "Suppose you have two Eureka servers, how does each application know which Eureka server it is registered to?",
-        "answer": null,
+        "answer": "<p>In the application configuration file (application.yml), the defaultZone of eureka is referrring to the eureka server listed that current applicaotin is registered to: eureka.client.serviceUrl.defaultZone: http://eureka1:8761/eureka/,http://eureka2:8762/eureka/.  </p>",
         "keyword": "Microservice",
-        "frequency": 0,
+        "frequency": 1,
         "top": true
     },
     {
         "id": 158,
         "question": "What is the circuit breaker?",
-        "answer": null,
+        "answer": "<p> Circuit Breaker is a pattern used when there are two services, one calls another, but another service errors out or not available. We can use resilience4j or hystrix to implement circuit breaker pattern.</p><p>Key points:</p><ol><li>It can have retry and fallback. If <strong>retry</strong> multiple times still failed, it can invoke <strong>fallback</strong> method to use the fallback method logic instead. </li><li>It can also maintain states, like <strong>closed</strong> (normal), <strong>open</strong> (failure too much) and <strong>half-open</strong> (limits are reached)</li></ol><p><br></p>",
         "keyword": "Microservice",
-        "frequency": 0,
-        "top": true
-    },
-    {
-        "id": 159,
-        "question": "How does microservices communicate with each other?",
-        "answer": null,
-        "keyword": "Microservice",
-        "frequency": 0,
+        "frequency": 5,
         "top": true
     },
     {
         "id": 160,
         "question": "How do you use RestTemplate?",
-        "answer": null,
+        "answer": "<p>We use RestTemplate to call another rest api from current application.</p><pre class=\"ql-syntax\" spellcheck=\"false\">String response = restTemplate.getForObject(url, String.class);\nResponseEntity&lt;String&gt; response = restTemplate.exchange(url, HttpMethod.DELETE, request, String.class);\n</pre>",
         "keyword": "Microservice",
         "frequency": 0,
         "top": false
@@ -1418,49 +1402,57 @@
     {
         "id": 161,
         "question": "How do you get noticed when a service is down?",
-        "answer": null,
+        "answer": "<p>Multiple tools to consider:</p><ol><li><strong>Service discovery</strong> can show the status of each service, like Eureka and Consul. they have dashboard. The services send heartbeat to them when they are healthy.</li><li><strong>Spring boot actuator</strong> has endpoints like /info /metrics /health can show the status of each service</li><li><strong>Circuit Breaker</strong> can tell when another service is down</li><li>Other <strong>monitoring tool </strong>like <strong>Prometheus</strong> and <strong>Grafana</strong> can also report errors or service down.</li></ol>",
         "keyword": "Microservice",
-        "frequency": 0,
+        "frequency": 2,
         "top": false
+    },
+    {
+        "id": 191,
+        "question": "How to communicate between microservices",
+        "answer": "<p>Sync: use RestTemplate or FeignClient or RestClient</p><p>Async: use message queue, like Kafka, ActiveMQ, RabbitMQ etc</p>",
+        "keyword": "Microservice",
+        "frequency": 5,
+        "top": true
     },
     {
         "id": 233,
         "question": "How to setup service discovery?",
-        "answer": null,
+        "answer": "<p>Lets take Eureka service discovery as example:</p><ol><li>we need to setup Eureka server, we can create Eureka server using @EnableEurekaServer</li><li>in each service application.properties file, use \"eureka.client.service-url.defaultZone\" to point to Eureka Server.</li><li>in each service, use annotation @EnableDiscoveryClient or @EnableEurekaClient</li></ol>",
         "keyword": "Microservice",
-        "frequency": 0,
+        "frequency": 1,
         "top": false
+    },
+    {
+        "id": 298,
+        "question": "Key Difference: Rest vs Soap vs GraphQL vs gRPC vs WebSocket",
+        "answer": "<p>Rest: simple and fast, use JSON format by default, use Http methods and error code</p><p>Soap: XML based, Use WSDL file for schema, heavy, but have built in support for Security</p><p>GraphQL: reduce number of APIs, only has query (get) and mutation (put, post, delete), It allows caller to define what data they want in return.</p><p>gRPC: very fast, so good for microservices stack, use binary data (protobuffs) by default</p><p>WebSocket: two way communications, for real time, like chatbot, stock data live update etc.</p><p><br></p><p><br></p>",
+        "keyword": "Microservice",
+        "frequency": 3,
+        "top": true
     },
     {
         "id": 301,
-        "question": "What is Granuarity Line in microserivce",
-        "answer": null,
+        "question": "What is Granularity Line in microserivce",
+        "answer": "<p>Granularity Lines refers to (in size) how small or large your microservice will be split to. </p><p>Fine-Grained:</p><ul><li>each service is very small, for particular task. good for high scalability, bad for data communication and could cause data latency</li></ul><p>Coarse-Grained:</p><ul><li>each service is large with multiple business workflows. reduce network call but hard to scale because split is not complete.</li></ul><p><br></p>",
         "keyword": "Microservice",
-        "frequency": 0,
+        "frequency": 1,
         "top": false
     },
     {
-        "id": 325,
-        "question": "How check services and their status, what is they are hosted in docker",
-        "answer": null,
-        "keyword": "Microservice",
+        "id": 290,
+        "question": "Explain CAP theorem and which database use them",
+        "answer": "<p>CAP theorem is principles for NoSQL. </p><p>C: consistency, data is the same when reading from different nodes at same time</p><p>A: availability, data should always be available even there is node failure.</p><p>P: partition tolerance, the db should continue to work even if there are no communication between nodes (like data cannot sync)</p><p> ONLY TWO rules can be satisfied together</p><p>When P (partition tolerance) is satisfied, means nodes can not communicate. Then if we want C (consistency), then we have to make the inconsistent node unavailable, so CP will lose A.  However if we want all nodes to be available, then some nodes may not be consistent because they cannot communicate. So AP must lose C.</p><p>If we want data to be always A available and always C consistent. then there cannot be out-of-sync between nodes, so AC must lose P.</p><p>CP - MongoDB,   AP - Cassandra,  AC - RDBMS</p>",
+        "keyword": "NoSQL",
         "frequency": 5,
-        "top": false
+        "top": true
     },
     {
         "id": 352,
         "question": "How do you decide which database to choose, SQL or NoSQL",
         "answer": "<p>Several Main difference</p><ul><li>1. SQL: only have pre-defined structure schema/data, it is table based.</li><li>1. NOSQL: unstructure data, like MongoDB can store PDF/audio/video/text/json data easily. Cassandra is column based, you can easily expand the columns</li><li>2. SQL: based on ACID rules, designed to handle transactions.</li><li>2. NOSQL: based on CAP theorem, not good for transactions.</li><li>3. SQL: traditional database with SQL, not designed for big data</li><li>3. NOSQL: designed for big data, have partitions.</li></ul>",
         "keyword": "NoSQL",
-        "frequency": 0,
-        "top": true
-    },
-    {
-        "id": 290,
-        "question": "Explain CAP theorem and which database use them",
-        "answer": null,
-        "keyword": "NoSQL",
-        "frequency": 0,
+        "frequency": 5,
         "top": true
     },
     {
@@ -1474,9 +1466,17 @@
     {
         "id": 452,
         "question": "What is consistent hashing in cassandra",
-        "answer": null,
+        "answer": "<p>Cassandra uses consistent hashing to divide which data to store into which data node</p><p>Suppose you have 3 nodes, 1st node stores hashing key from 1 to 1k, 2nd node stores 1k to 2k,  3rd node stores 2k to 3k. If you have a new data, we calling the hashing algorithm and if its hashing is 1.5k, then cassandra will store it into node2. </p><p>GOOD thing will this hashing algorithm is that new data added to one node, will not impact other nodes, (minimal data movements)</p><p>BAD thing is it could cause some node too much data. </p>",
         "keyword": "NoSQL Cassandra",
-        "frequency": 3,
+        "frequency": 1,
+        "top": false
+    },
+    {
+        "id": 453,
+        "question": "what is cassandra replicatoin strategy",
+        "answer": "<p>There are two types of Replication Strategies.</p><p><strong>SimpleStrategy</strong> is for single data center, usually used for Development and Testing purposes</p><p><strong>NetworkTopologyStrategy</strong> is for multi data centers, usually used for Production environments. The replications could be in different network in the whole data center.</p><p>To check Cassandra replication strategy:</p><p><strong>SELECT  keyspace_name, replication FROM system_schema.keyspaces;</strong></p><p><br></p>",
+        "keyword": "NoSQL Cassandra",
+        "frequency": 2,
         "top": false
     },
     {
@@ -1504,51 +1504,27 @@
         "top": true
     },
     {
-        "id": 162,
-        "question": "Design a Employee Voting system according to the requirements",
-        "answer": null,
-        "keyword": "OOD",
-        "frequency": 0,
-        "top": true
-    },
-    {
         "id": 166,
         "question": "Basic principles of the OOP",
-        "answer": null,
+        "answer": "<p>Remember \"A PIE\"</p><p>P: Polymorphism - static and dynamic - overload and override</p><p>I: Inherence - class extension and interface implementation</p><p>E: encapsulation - packages and access modifier (private, public, default, protected)</p><p>A: Abstraction - abstract class and interface</p>",
         "keyword": "OOP",
-        "frequency": 0,
+        "frequency": 5,
         "top": true
     },
     {
         "id": 167,
         "question": "Why Inheritance? / Benefit of using Inheritance",
-        "answer": null,
+        "answer": "<p>Inheritance: a java class can extend another java class.</p><p>Benefit: 1)Code reusability - because we auto inherit methods from parent class. 2) Reduce code redundancy. 3) Increase extensibility. </p>",
         "keyword": "OOP",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 169,
-        "question": "Design a parking lot according to the requirements",
-        "answer": null,
-        "keyword": "OOP",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 170,
-        "question": "Inheritance vs. Composition/Aggregation -> IS-A and HAS-A",
-        "answer": null,
-        "keyword": "OOP",
-        "frequency": 0,
+        "frequency": 1,
         "top": false
     },
     {
         "id": 171,
         "question": "Can a class inherits multiple parent classes? / Is multiple inheritance allowed? Why?",
-        "answer": null,
+        "answer": "<ol><li>In Java, a class can ONLY extend 1 parent class. Multiple inheritance is NOT allowed. </li><li>Diamond problem: a child class extends two parent classes,  both parent classes have a same method definition but with different method body, the child class does not know which one to use (ambiguity) --&gt; to prevent this problem, java does not allow multiple inheritance. </li><li>What can we do if we need to inherit two parents? ---&gt; Use interface.</li></ol><p><br></p>",
         "keyword": "OOP",
-        "frequency": 0,
+        "frequency": 3,
         "top": false
     },
     {
@@ -1556,14 +1532,6 @@
         "question": "When you API request or Frontend page loading slowly, how do you handle it?",
         "answer": "<p>Key things:</p><ol><li>For large dataset request, you can use <strong>Pagination</strong>. Just like google search, you can split your data into batches, each request only fetch fixed amount of rows.</li><li>Use <strong>cache </strong>instead of database visit, Frontend: cache the visited page data. Backend: <strong>in-memory</strong> java cache for monolithic application, distributed cache, <strong>redis</strong>, for microservices.</li><li>Other tools can help improve read performance, like elasticsearch can boost the search.</li><li>Database side: <strong>Optimize the SQL</strong>, use Sql tuning tools, like the Oracle explain plan. Add proper index (non-cluster index) on some frequently visited columns.</li></ol>",
         "keyword": "Performance",
-        "frequency": 0,
-        "top": true
-    },
-    {
-        "id": 298,
-        "question": "Key Difference: Soap vs Rest",
-        "answer": null,
-        "keyword": "Rest",
         "frequency": 0,
         "top": true
     },
@@ -1785,8 +1753,8 @@
     },
     {
         "id": 449,
-        "question": "What to lazy loading a spring bean",
-        "answer": null,
+        "question": "How to lazy loading a spring bean",
+        "answer": "<p>use @Lazy. What it does is it lazy loading a bean only when it is really used. So it can 1) improve efficiency 2) prevent circular dependency!</p>",
         "keyword": "Spring Core",
         "frequency": 4,
         "top": true
@@ -1968,6 +1936,22 @@
         "top": true
     },
     {
+        "id": 316,
+        "question": "SQL how to delete duplicate rows, only keep unique rows",
+        "answer": "<p>Use ROW_NUMBER() to count the duplicate rows and mark with sequence and then delete all sequence number &gt; 1</p><pre class=\"ql-syntax\" spellcheck=\"false\">WITH CTE AS (\n&nbsp; &nbsp; SELECT *,&nbsp;\n&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;ROW_NUMBER() OVER (PARTITION BY column1, column2 ORDER BY id) AS rn\n&nbsp; &nbsp; FROM table_name\n)\nDELETE FROM table_name&nbsp;\nWHERE id IN (SELECT id FROM CTE WHERE rn &gt; 1);\n</pre>",
+        "keyword": "SQL",
+        "frequency": 5,
+        "top": true
+    },
+    {
+        "id": 328,
+        "question": "SQL: Given 2 tables, find the data in both of table that not matching each other",
+        "answer": "<p>The idea is to fully join two tables and those records that not in another table will have value as null.</p><p>If the database support FULL OUTER JOIN (like PostgreSQL, SQL Server), then:</p><pre class=\"ql-syntax\" spellcheck=\"false\">SELECT *\nFROM table1\nFULL OUTER JOIN table2 ON table1.id = table2.id\nWHERE table1.id IS NULL OR table2.id IS NULL;\n\n</pre><p>If the database does not support FULL OUTER JOIN (oracle, mysql etc), we can use LEFT JOIN and RIGHT JOIN to implement FULL OUTER JOIN and then UNION both null records:</p><pre class=\"ql-syntax\" spellcheck=\"false\">SELECT * FROM table1 t1\nLEFT JOIN table2 t2 ON t1.id = t2.id\nWHERE t2.id IS NULL\nUNION\nSELECT * FROM table1 t1\nRIGHT JOIN table2 t2 ON t1.id = t2.id\nWHERE t1.id IS NULL;\n</pre>",
+        "keyword": "SQL",
+        "frequency": 1,
+        "top": false
+    },
+    {
         "id": 355,
         "question": "Find the 2nd largest salary in employee table",
         "answer": "<p>SOLUTION 1 (best for highest, 2nd highest, not good for 3rd, 4th etc, need to understand subquery)</p><pre class=\"ql-syntax\" spellcheck=\"false\">SELECT MAX(salary) FROM employee WHERE salary &lt; (SELECT MAX(salary) FROM employee);\n</pre><p><span style=\"color: rgb(81, 86, 94);\">SOLUTION 2: (best for Kth highest. need to understand OFFSET, LIMIT)</span></p><pre class=\"ql-syntax\" spellcheck=\"false\">SELECT DISTINCT salary FROM employee ORDER BY salary DESC OFFSET 1 LIMIT 1\n</pre>",
@@ -1989,22 +1973,6 @@
         "answer": "<p>When you are asked to compare data inside same table, that is SELF join, the key to do self join is to treat the table as 2 tables.</p><pre class=\"ql-syntax\" spellcheck=\"false\">SELECT emp.name, mgr.name AS manager, emp.salary, mgr.salary AS manager_salary\nFROM employee emp\nJOIN employee mgr\nON emp.managerId = mgr.id\nWHERE emp.salary &gt; mgr.salary;\n</pre><p>Here, i treat emplyee table as 2 tables, one is employee and another is manager, the SQL becomes very clear.</p>",
         "keyword": "SQL",
         "frequency": 4,
-        "top": false
-    },
-    {
-        "id": 316,
-        "question": "SQL how to delete duplicate rows, only keep unique rows",
-        "answer": null,
-        "keyword": "SQL",
-        "frequency": 0,
-        "top": true
-    },
-    {
-        "id": 328,
-        "question": "SQL: Given 2 tables, find the data in both of table that not matching each other",
-        "answer": null,
-        "keyword": "SQL",
-        "frequency": 0,
         "top": false
     },
     {
@@ -2030,6 +1998,14 @@
         "keyword": "System",
         "frequency": 4,
         "top": false
+    },
+    {
+        "id": 40,
+        "question": "If you have error, but it is not showing in log, how do you debug and find it.",
+        "answer": "<p>when there is production error, first always check the log (like splunk), with log, we can easily identify the source code.</p><p>if there is no log, we could try this:</p><ul><li>Try to locate the area of the error, and put breakpoints and debug.</li><li>May contact the customer directly to reproduce the error. If we can reproduce, we can fix it</li><li>Consider environment issue, if we cannot reproduce, it could be environment specific or customer specific.</li><li>There is always something we can track to find the root cause..</li></ul>",
+        "keyword": "System",
+        "frequency": 4,
+        "top": true
     },
     {
         "id": 205,
@@ -2064,17 +2040,25 @@
         "top": true
     },
     {
-        "id": 40,
-        "question": "If you have error, but it is not showing in log, how do you debug and find it.",
-        "answer": null,
-        "keyword": "System",
-        "frequency": 4,
-        "top": true
-    },
-    {
         "id": 240,
         "question": "What kind of test experience do you have?",
         "answer": "<p>Unit test:  Junit, mockito, powermock -- test each method, this is method level. The way to write unit test is to define a hard code input and call the target method and then verify if the result is correct using assert.</p><p>Automation test: Selenium, Cucumber, TestNG</p><p>Regression test: is to make sure the new part of code does not break the existing functions</p><p>Integration test: is to make sure the new parts interacts/works well with the other parts.</p><p>End to End test: is to make sure the entire workflow works from beginning to end.</p><p><br></p><p>Regression/Integration/End2End tests are just different type of tests, they are mostly implemented by Selenium and Cucumber or TestNG.</p>",
+        "keyword": "Test",
+        "frequency": 5,
+        "top": true
+    },
+    {
+        "id": 242,
+        "question": "Talk about Mockito and give an example",
+        "answer": "<p>Mockito is used in Unit test to handle cases when 3rd party is involved by they are not the purpose of the test.</p><pre class=\"ql-syntax\" spellcheck=\"false\">Class UserServiceTest{\n   @Mock\n   private UserRepository repo;  //mocked\n   @InjectMocks\n   private UserService userService; // service to be tested\n\n   @Test\n   public void testProcessUser_Success(){\n       int uid = 1;\n       User mockUser = new User(uid, \"name\", \"email\");\n       String expectedResult = \"....\";\n       when(repo.findById(uid)).thenReturn(mockUser); //mock DB call out, so no real DB call happened\n       String result = userService.processUser(uid);\n       assertEquals(expectedResult, result);\n       verify(repo, times(1).findById(uid));\n   }\n}\n</pre><p>In this example, the \"processUser\" method in \"UserService\" has multiple steps with one step is to make DB call findById. We use mock to simulate that step so no real DB call really happened - because our target is to test the \"processUser\" method instead of the \"findById\" method.</p>",
+        "keyword": "Test",
+        "frequency": 4,
+        "top": false
+    },
+    {
+        "id": 243,
+        "question": "Talk about different test you did before",
+        "answer": "<p>Dev:  Peer test, unit test, automation test</p><p>QA: Automation test (cucumber, junit, testNG), regression, integration, End-to-End (e2e) test. HP Test suites</p><p>pre-prod: Load test/performance test</p><p>Prod: AB Test</p><p><br></p><p><strong>Peer test</strong>: your team member test your code. </p><p><strong>Manual test:</strong> manually test your code, like postman etc</p><p><strong>Unit test:</strong> Junit etc, to test each method, it is for method level test</p><p><strong>Automation test:</strong> it is a general concept that all test code runs together, can refer to unit test suite or cucumber etc</p><p><strong>Regression test:</strong> test if the current fix will break existing logic (can be covered by automation test)</p><p><strong>Integration test</strong>: test if current piece will work together with other pieces (can be covered by automation test) </p><p><strong>End-to-End (e2e) test:</strong> just a concept that test a workflow from beginning to end, it means test entire workflow (automation test like cucumber or testng)</p><p><strong>HP test suites:</strong> it is used by QA to list all the manual test steps and results to verify, so they can follow these steps to manually finish the test plan.</p><p><strong>Load test:</strong> use JMeter like tool to test how much concurrent requests a endpoint can take. Like it can issue 1000 requests in 5 minutes and track how many pass, fail and timeout</p><p><strong>AB test</strong>: when you have two designs you cannot decide, so in production, 50% user see A and 50% user see B, and you check which one is more used by users so you know which one should be chosen.</p><p><br></p>",
         "keyword": "Test",
         "frequency": 5,
         "top": true
@@ -2088,83 +2072,43 @@
         "top": true
     },
     {
-        "id": 239,
-        "question": "Functional test & Integrtion test & Unit test",
-        "answer": null,
-        "keyword": "Test",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 241,
-        "question": "What's the test framework in your team?",
-        "answer": null,
-        "keyword": "Test",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 242,
-        "question": "Talk about Mockito and give an example",
-        "answer": null,
-        "keyword": "Test",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 243,
-        "question": "Talk about different test you did before",
-        "answer": null,
-        "keyword": "Test",
-        "frequency": 0,
-        "top": false
-    },
-    {
-        "id": 244,
-        "question": "JUnit vs. Automation",
-        "answer": null,
-        "keyword": "Test",
-        "frequency": 0,
-        "top": false
-    },
-    {
         "id": 246,
         "question": "What is the limitation of the Mockito?",
-        "answer": null,
+        "answer": "<p>Cannot mock 1) static, 2) private 3) final 4) constructor methods</p><p>Cannot verify system.out.println</p>",
         "keyword": "Test",
-        "frequency": 0,
+        "frequency": 1,
         "top": false
     },
     {
         "id": 247,
         "question": "Can you mock a static field using Mockito?",
-        "answer": null,
+        "answer": "<p>No, you can use PowerMock or Java Reflection instead.</p>",
         "keyword": "Test",
-        "frequency": 0,
+        "frequency": 3,
         "top": false
     },
     {
         "id": 248,
         "question": "How to test a private method without other framework?",
-        "answer": null,
+        "answer": "<p>If using framework, we can use PowerMock</p><p>If not, we can use java Reflection,  it has <strong>getDeclaredMethod</strong>(\"method name\") to get the method and then <strong>setAccessible</strong>(true) so we can access this method.</p>",
         "keyword": "Test",
-        "frequency": 0,
+        "frequency": 2,
         "top": false
     },
     {
         "id": 304,
-        "question": "Difference: InjectMock vs InjectMockBean",
-        "answer": null,
+        "question": "Difference: @InjectMock vs @Mock",
+        "answer": "<p>Mockito:</p><p>@Mock: </p><p>\t\tcreate a mock object of a class so tests will use mock object instead of real objects</p><p>@InjectMocks:</p><p>       Injects @Mock into a real instance. If service class A depends on utils B.  if we put @InjectMocks on A and @Mock on B,  then tests will use real instance of A but with mocked B.</p><p>@Spy:</p><p>\t  Partial mock, real methods are executed unless stubbed.</p><p>      @Spy <strong>stub</strong> is like <strong>when(condition).then(result)</strong>, if there is no such stub, then real methods are called.</p><p>@Captor: </p><p>\t captures arguments passed to the methods.</p><p><br></p><p>Spring boot Test</p><p>@MockBean:  mock a spring bean, the real bean is not used -- corresponding to @Mock in mockito</p><p>@SpyBean: spy a spring bean, corresponding to @Spy in mockito</p><p>@WebMvcTest : test controller rest api</p><p><br></p>",
         "keyword": "Test",
-        "frequency": 0,
+        "frequency": 2,
         "top": false
     },
     {
         "id": 326,
         "question": "Unix/Linux: list java process, kill a process, search a file",
-        "answer": null,
+        "answer": "<p>List java process:  <strong>ps</strong> aux | grep java</p><p>Kill a process: <strong>kill</strong> PID</p><p>search a file by name:  <strong>find</strong>  /path-to-search  -name \"filename\"</p><p>search a file by name globally: <strong>find</strong>  /  -name \"filename\"</p><p>search files contain keywords: <strong>grep</strong> <strong>-r </strong>\"keywords\" /path-to-search</p>",
         "keyword": "Unix",
-        "frequency": 0,
+        "frequency": 1,
         "top": false
     }
 ]
