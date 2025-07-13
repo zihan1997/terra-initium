@@ -20,7 +20,8 @@ app.mount(
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    index_path = Path(__file__).parent / "static" / "index.html"
+    index_path = Path(__file__).parent.parent / "static" / "index.html"
+    print(index_path)
     return index_path.read_text(encoding="utf-8")
 
 @app.get(INTERVIEW_QUESTIONS)
