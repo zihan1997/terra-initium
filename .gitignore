@@ -6,3 +6,4 @@ ci
 **/node_modules/
 **/**/build
 **/**/dist
+app/.idea/**
