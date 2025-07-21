@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Hash, Star } from 'lucide-react';
+import { ChevronDown, ChevronUp, Hash, Star, Mic, MicOff, Play, Store as Stop, Upload } from 'lucide-react';
 import type { Question, QuestionScore } from '../types/Question';
+import { AudioRecorder } from './AudioRecorder';
 
 interface QuestionCardProps {
   question: Question;
   isMockMode?: boolean;
+  gptToken?: string;
   score?: QuestionScore;
   onScoreChange?: (score: number) => void;
+  onAudioSubmit?: (audio: Blob) => void;
 }
 
 export function QuestionCard({ 
   question, 
   isMockMode = false,
+  gptToken,
   score,
-  onScoreChange 
+  onScoreChange,
+  onAudioSubmit
 }: QuestionCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -66,30 +71,48 @@ export function QuestionCard({
         </div>
       )}
       
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-600">
-          Frequency: {question.frequency}
-        </span>
+      <div className="mt-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-600">
+            Frequency: {question.frequency}
+          </span>
+        </div>
         
         {isMockMode && (
-          <div className="flex items-center gap-2">
-            {scoreButtons.map((value) => (
-              <button
-                key={value}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onScoreChange?.(value);
-                }}
-                className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${
-                  score?.score === value
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
+          <>
+            <AudioRecorder
+              questionId={question.id}
+              question={question.question}
+              correctAnswer={question.answer}
+              gptToken={gptToken}
+              onAudioSubmit={onAudioSubmit}
+              isSubmitting={score?.isSubmitting}
+              aiScore={score?.aiScore}
+              aiExplanation={score?.aiExplanation}
+            />
+            
+            <div className="text-sm">
+              <span className="text-sm font-medium text-gray-600">Manual Score:</span>
+              <div className="flex items-center gap-1 mt-1">
+                {scoreButtons.map((value) => (
+                  <button
+                    key={value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onScoreChange?.(value);
+                    }}
+                    className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${
+                      score?.score === value
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

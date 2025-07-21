@@ -14,6 +14,8 @@ import {
 } from './utils/filterQuestions';
 import type { Question, MockInterviewSettings, QuestionScore, MockInterviewResults } from './types/Question';
 import { Clock, X } from 'lucide-react';
+import { Settings } from 'lucide-react';
+import { SettingsModal } from './components/SettingsModal';
 
 export default function App() {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -29,6 +31,25 @@ export default function App() {
   });
   const [scores, setScores] = useState<QuestionScore[]>([]);
   const [results, setResults] = useState<MockInterviewResults | null>(null);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [gptToken, setGptToken] = useState<string>('');
+
+  // Load GPT token from localStorage on component mount
+  useEffect(() => {
+    const savedToken = sessionStorage.getItem('gpt-token');
+    if (savedToken) {
+      setGptToken(savedToken);
+    }
+  }, []);
+
+  const handleTokenChange = (token: string) => {
+    setGptToken(token);
+    if (token) {
+      sessionStorage.setItem('gpt-token', token);
+    } else {
+      sessionStorage.removeItem('gpt-token');
+    }
+  };
 
   useEffect(() => {
     async function fetchQuestions() {
@@ -85,6 +106,56 @@ export default function App() {
     ));
   };
 
+  const handleAudioSubmit = async (questionId: number, audio: Blob) => {
+    // Set submitting state
+    setScores(prev => prev.map(s => 
+      s.questionId === questionId 
+        ? { ...s, isSubmitting: true, userAudio: audio }
+        : s
+    ));
+
+    try {
+      const question = questions.find(q => q.id === questionId);
+      if (!question) return;
+
+      // Create FormData for the API call
+      const formData = new FormData();
+      formData.append('audio', audio, `question_${questionId}.wav`);
+      formData.append('question', question.question);
+      formData.append('correctAnswer', question.answer);
+      formData.append('token', gptToken);
+
+      const response = await fetch('/evaluate-question/', {
+        method: 'POST',
+        body: formData
+      });
+      const result = await response.json();
+      console.log("result", result);
+      
+      // Update with AI score and set manual score to match
+      setScores(prev => prev.map(s => 
+        s.questionId === questionId 
+          ? { ...s, 
+            isSubmitting: false, 
+            aiScore: result.score, 
+            score: result.score, 
+            aiExplanation: result.explanation 
+          }
+          : s
+      ));
+      
+    } catch (error) {
+      console.error('Error submitting audio:', error);
+      // Reset submitting state on error
+      setScores(prev => prev.map(s => 
+        s.questionId === questionId 
+          ? { ...s, isSubmitting: false }
+          : s
+      ));
+      alert('Error submitting audio. Please try again.');
+    }
+  };
+
   const handleEndMock = () => {
     const totalScore = scores.reduce((sum, s) => sum + s.score, 0);
     const maxPossibleScore = scores.length * 5;
@@ -109,6 +180,16 @@ export default function App() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto py-8 px-4">
         <header className="text-center mb-8">
+          <div className="flex justify-between items-start mb-4">
+            <div></div>
+            <button
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
           <h1 className="text-3xl font-bold text-gray-900">
             Interview Questions
           </h1>
@@ -123,6 +204,13 @@ export default function App() {
               <Clock className="w-5 h-5 mr-2" />
               Start Mock Interview
             </button>
+          )}
+          {!gptToken && (
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800">
+                💡 Add your OpenAI GPT token in settings to enable AI-powered answer evaluation
+              </p>
+            </div>
           )}
         </header>
 
@@ -142,8 +230,10 @@ export default function App() {
             <QuestionList 
               questions={filteredQuestions}
               isMockMode={mockSettings.isActive}
+              gptToken={gptToken}
               scores={scores}
               onScoreChange={mockSettings.isActive ? handleScoreChange : undefined}
+              onAudioSubmit={mockSettings.isActive ? handleAudioSubmit : undefined}
             />
           </>
         )}
@@ -181,6 +271,13 @@ export default function App() {
           questions={questions}
         />
       )}
+
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        gptToken={gptToken}
+        onTokenChange={handleTokenChange}
+      />
     </div>
   );
 }

@@ -61,14 +61,25 @@ export function ResultsModal({ isOpen, onClose, results, questions }: ResultsMod
                     </h3>
                     <div className="flex items-center gap-2 mb-4">
                       <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
-                        Score: {score.score}/5
+                        Manual Score: {score.score}/5
                       </span>
+                      {score.aiScore !== undefined && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                          AI Score: {score.aiScore}/5
+                        </span>
+                      )}
                       {question.top && (
                         <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-sm">
                           Top Question
                         </span>
                       )}
                     </div>
+                    {score.aiExplanation && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="text-sm font-medium text-blue-800 mb-1">AI Feedback:</div>
+                        <div className="text-sm text-blue-700">{score.aiExplanation}</div>
+                      </div>
+                    )}
                     <div className="prose prose-sm">
                       <div
                         dangerouslySetInnerHTML={{ __html: question.answer }}

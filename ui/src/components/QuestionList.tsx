@@ -5,15 +5,19 @@ import type { Question, QuestionScore } from '../types/Question';
 interface QuestionListProps {
   questions: Question[];
   isMockMode?: boolean;
+  gptToken?: string;
   scores?: QuestionScore[];
   onScoreChange?: (questionId: number, score: number) => void;
+  onAudioSubmit?: (questionId: number, audio: Blob) => void;
 }
 
 export function QuestionList({ 
   questions,
   isMockMode = false,
+  gptToken,
   scores = [],
-  onScoreChange
+  onScoreChange,
+  onAudioSubmit
 }: QuestionListProps) {
   if (questions.length === 0) {
     return (
@@ -32,10 +36,16 @@ export function QuestionList({
           key={question.id} 
           question={question}
           isMockMode={isMockMode}
+          gptToken={gptToken}
           score={scoresMap.get(question.id)}
           onScoreChange={
             onScoreChange 
               ? (score) => onScoreChange(question.id, score)
+              : undefined
+          }
+          onAudioSubmit={
+            onAudioSubmit
+              ? (audio) => onAudioSubmit(question.id, audio)
               : undefined
           }
         />
