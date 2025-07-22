@@ -93,10 +93,19 @@ export function MockInterviewModal({ isOpen, onClose, questions, onStart }: Mock
   };
 
   const handleTopQuestionsToggle = () => {
-    setShowTopQuestionsOnly(!showTopQuestionsOnly);
-    // Clear selections when toggling
-    setSelectedQuestions(new Set());
-    setSelectedTags(new Set());
+    const newShowTopQuestionsOnly = !showTopQuestionsOnly;
+    setShowTopQuestionsOnly(newShowTopQuestionsOnly);
+    
+    if (newShowTopQuestionsOnly) {
+      // When enabling top questions only, clear current selections and auto-select all top questions
+      const shuffledTopQuestions = shuffleArray(topQuestions.map(q => q.id));
+      setSelectedQuestions(new Set(shuffledTopQuestions));
+      setSelectedTags(new Set(topQuestions.map(q => q.keyword)));
+    } else {
+      // When disabling, clear selections
+      setSelectedQuestions(new Set());
+      setSelectedTags(new Set());
+    }
   };
 
   const handleStart = () => {
