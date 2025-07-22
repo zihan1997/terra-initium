@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-
 from src.constants import ASSERTS_PATH
 from src.interview_questions.router import router as interview_questions_router
 from src.mock_interview.router import router as mock_interview_router
