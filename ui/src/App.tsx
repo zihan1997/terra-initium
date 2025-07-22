@@ -181,7 +181,6 @@ export default function App() {
       <div className="max-w-4xl mx-auto py-8 px-4">
         <header className="text-center mb-8">
           <div className="flex justify-between items-start mb-4">
-            <div></div>
             <button
               onClick={() => setIsSettingsModalOpen(true)}
               className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
@@ -189,6 +188,7 @@ export default function App() {
             >
               <Settings className="w-5 h-5" />
             </button>
+            <div></div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">
             Interview Questions
