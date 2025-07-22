@@ -1480,7 +1480,7 @@
         "top": false
     },
     {
-        "id": 453,
+        "id": 454,
         "question": "what is cassandra replicatoin strategy",
         "answer": null,
         "keyword": "NoSQL Cassandra",
