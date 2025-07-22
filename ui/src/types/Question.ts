@@ -17,7 +17,12 @@ export interface MockInterviewSettings {
 export interface QuestionScore {
   questionId: number;
   score: number; // 0-5
-  isSubmitted: boolean;
+  userAudio?: Blob;
+  isRecording?: boolean;
+  hasRecording?: boolean;
+  isSubmitting?: boolean;
+  aiScore?: number;
+  aiExplanation?: string;
 }
 
 export interface MockInterviewResults {
@@ -25,4 +30,5 @@ export interface MockInterviewResults {
   totalScore: number;
   maxPossibleScore: number;
   completedAt: Date;
+  aiScores?: { questionId: number; score: number }[];
 }
