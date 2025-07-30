@@ -10,8 +10,7 @@ export default function SimpleLogIn({ onLogin }: SimpleLogInProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
-  // Simple password check - you can change this to whatever you want
-  const correctPassword = 'interview2024';
+  const correctPassword = 'whiskey-' + (new Date().getMonth() + 1);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,10 +80,6 @@ export default function SimpleLogIn({ onLogin }: SimpleLogInProps) {
             Login
           </button>
         </form>
-
-        <div className="mt-6 text-center text-xs text-gray-500">
-          Default password: interview2024
-        </div>
       </div>
     </div>
   );
