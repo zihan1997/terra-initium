@@ -10,7 +10,6 @@ export default function SimpleLogIn({ onLogin }: SimpleLogInProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
-  // Simple password check - you can change this to whatever you want
   const correctPassword = 'whiskey-' + (new Date().getMonth() + 1);
 
   const handleLogin = (e: React.FormEvent) => {
