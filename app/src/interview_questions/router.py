@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, FileResponse
-from src.constants import ENTRY_POINT_INTERVIEW_QUESTIONS_PATH, INTERVIEW_QUESTIONS_PATH
+from src.constants import ENTRY_POINT_INTERVIEW_QUESTIONS_PATH, INTERVIEW_QUESTIONS_PATH, INTERVIEW_REAL_QUESTIONS_PATH
 
 router = APIRouter(
     prefix="/interview_questions",
@@ -11,6 +11,11 @@ router = APIRouter(
 @router.get('/InterviewQuestionList.json')
 async def serve_question_list():
     json_path = INTERVIEW_QUESTIONS_PATH
+    return FileResponse(json_path, media_type="application/json")
+
+@router.get('/mian-jing.json')
+async def serve_question_list():
+    json_path = INTERVIEW_REAL_QUESTIONS_PATH
     return FileResponse(json_path, media_type="application/json")
 
 @router.get("/", response_class=HTMLResponse)
