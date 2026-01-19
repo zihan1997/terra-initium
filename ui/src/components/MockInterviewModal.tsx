@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Timer, X, Tags, Hash, Star, CheckSquare } from 'lucide-react';
 import type { Question } from '../types/Question';
-import { shuffleArray } from '../utils/filterQuestions';
+import { shuffleArray } from '../utils/QuestionUtils';
 
 interface MockInterviewModalProps {
   isOpen: boolean;
@@ -41,7 +41,7 @@ export function MockInterviewModal({ isOpen, onClose, questions, onStart }: Mock
       newSelectedTags.delete(tag);
       // Remove all questions with this tag
       const newSelectedQuestions = new Set(
-        Array.from(selectedQuestions).filter(id => 
+        Array.from(selectedQuestions).filter(id =>
           !questions.find(q => q.id === id && q.keyword === tag)
         )
       );
@@ -49,17 +49,17 @@ export function MockInterviewModal({ isOpen, onClose, questions, onStart }: Mock
     } else {
       newSelectedTags.add(tag);
       // Add all questions with this tag in random order
-      const questionsToAdd = showTopQuestionsOnly 
+      const questionsToAdd = showTopQuestionsOnly
         ? questions.filter(q => q.keyword === tag && q.top)
         : questions.filter(q => q.keyword === tag);
-      
+
       // Shuffle the questions before adding them
       const shuffledQuestions = shuffleArray(questionsToAdd);
-      
+
       // Convert existing selected questions to array, add new ones, and shuffle again
       const currentSelected = Array.from(selectedQuestions);
       const allQuestions = shuffleArray([...currentSelected, ...shuffledQuestions.map(q => q.id)]);
-      
+
       setSelectedQuestions(new Set(allQuestions));
     }
     setSelectedTags(newSelectedTags);
@@ -78,15 +78,15 @@ export function MockInterviewModal({ isOpen, onClose, questions, onStart }: Mock
     } else {
       // Select all available tags and their questions in random order
       const newSelectedTags = new Set(availableTags);
-      
+
       // Get all questions for available tags and shuffle them
-      const allQuestions = displayQuestions.filter(question => 
+      const allQuestions = displayQuestions.filter(question =>
         availableTags.includes(question.keyword)
       );
-      
+
       // Perform a thorough shuffle of the questions
       const shuffledQuestions = shuffleArray(allQuestions);
-      
+
       setSelectedTags(newSelectedTags);
       setSelectedQuestions(new Set(shuffledQuestions.map(q => q.id)));
     }
@@ -95,7 +95,7 @@ export function MockInterviewModal({ isOpen, onClose, questions, onStart }: Mock
   const handleTopQuestionsToggle = () => {
     const newShowTopQuestionsOnly = !showTopQuestionsOnly;
     setShowTopQuestionsOnly(newShowTopQuestionsOnly);
-    
+
     if (newShowTopQuestionsOnly) {
       // When enabling top questions only, clear current selections and auto-select all top questions
       const shuffledTopQuestions = shuffleArray(topQuestions.map(q => q.id));
@@ -271,7 +271,7 @@ export function MockInterviewModal({ isOpen, onClose, questions, onStart }: Mock
                 {uniqueTags.map((tag) => {
                   const questionsWithTag = displayQuestions.filter(q => q.keyword === tag);
                   if (questionsWithTag.length === 0) return null;
-                  
+
                   return (
                     <button
                       key={tag}
