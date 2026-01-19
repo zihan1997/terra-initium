@@ -6,21 +6,32 @@ import { ErrorMessage } from './components/ErrorMessage';
 import { MockInterviewModal } from './components/MockInterviewModal';
 import { MockInterviewTimer } from './components/MockInterviewTimer';
 import { ResultsModal } from './components/ResultsModal';
-import { loadQuestions } from './utils/loadQuestions';
+import { InterviewList } from './components/InterviewList';
+import { InterviewFilter } from './components/InterviewFilter';
+import { loadQuestions } from './service/loadQuestions';
+import { loadInterviews } from './service/InterviewService';
 import {
   filterQuestions,
   extractUniqueKeywords,
   shuffleArray,
-} from './utils/filterQuestions';
+  sortByTopAndKeyword,
+} from './utils/QuestionUtils';
 import type { Question, MockInterviewSettings, QuestionScore, MockInterviewResults } from './types/Question';
-import { Clock, X } from 'lucide-react';
+import type { Interview } from './types/Interview';
+import { Clock, X, BookOpen, Users } from 'lucide-react';
 import { Settings } from 'lucide-react';
 import { SettingsModal } from './components/SettingsModal';
+import { ERROR_FETCHING_QUESTIONS, ERROR_SUBMITTING_AUDIO, GPT_ADD_HINT, GPT_TOKEN, MOCK_START, PAGE_DISCRIPTION, PAGE_TITLE } from './utils/constant';
 
 export default function App() {
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'questions' | 'interviews'>('questions');
   const [isLoading, setIsLoading] = useState(true);
+
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
+  const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isMockModalOpen, setIsMockModalOpen] = useState(false);
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
@@ -36,7 +47,7 @@ export default function App() {
 
   // Load GPT token from localStorage on component mount
   useEffect(() => {
-    const savedToken = sessionStorage.getItem('gpt-token');
+    const savedToken = sessionStorage.getItem(GPT_TOKEN);
     if (savedToken) {
       setGptToken(savedToken);
     }
@@ -45,41 +56,46 @@ export default function App() {
   const handleTokenChange = (token: string) => {
     setGptToken(token);
     if (token) {
-      sessionStorage.setItem('gpt-token', token);
+      sessionStorage.setItem(GPT_TOKEN, token);
     } else {
-      sessionStorage.removeItem('gpt-token');
+      sessionStorage.removeItem(GPT_TOKEN);
     }
   };
 
   useEffect(() => {
-    async function fetchQuestions() {
+    async function fetchData() {
       try {
-        const data = await loadQuestions();
-        data.sort((a, b) => {
-          if (a.top !== b.top) {
-            return b.top ? 1 : -1;
-          }
-          if (a.keyword.localeCompare(b.keyword) !== 0) {
-            return a.keyword.localeCompare(b.keyword);
-          }
-          return a.id - b.id;
-        });
-        setQuestions(data);
+        const [questionsData, interviewsData] = await Promise.all([
+          loadQuestions(),
+          loadInterviews()
+        ]);
+        sortByTopAndKeyword(questionsData);
+        setQuestions(questionsData);
+        setInterviews(interviewsData);
         setError(null);
       } catch (err) {
-        setError('Failed to load interview questions. Please try again later.');
+        setError(ERROR_FETCHING_QUESTIONS);
       } finally {
         setIsLoading(false);
       }
     }
 
-    fetchQuestions();
+    fetchData();
   }, []);
 
   const keywords = extractUniqueKeywords(questions);
   const filteredQuestions = mockSettings.isActive
     ? questions.filter(q => mockSettings.selectedQuestions.includes(q.id))
     : filterQuestions(questions, selectedKeyword);
+
+  const positions = Array.from(new Set(interviews.map(i => i.position))).sort();
+  const clients = Array.from(new Set(interviews.map(i => i.client))).sort();
+
+  const filteredInterviews = interviews.filter(interview => {
+    if (selectedPosition && interview.position !== selectedPosition) return false;
+    if (selectedClient && interview.client !== selectedClient) return false;
+    return true;
+  });
 
   const handleStartMock = (duration: number, selectedQuestions: number[]) => {
     // Shuffle the selected questions
@@ -99,8 +115,8 @@ export default function App() {
   };
 
   const handleScoreChange = (questionId: number, score: number) => {
-    setScores(prev => prev.map(s => 
-      s.questionId === questionId 
+    setScores(prev => prev.map(s =>
+      s.questionId === questionId
         ? { ...s, score }
         : s
     ));
@@ -108,8 +124,8 @@ export default function App() {
 
   const handleAudioSubmit = async (questionId: number, audio: Blob) => {
     // Set submitting state
-    setScores(prev => prev.map(s => 
-      s.questionId === questionId 
+    setScores(prev => prev.map(s =>
+      s.questionId === questionId
         ? { ...s, isSubmitting: true, userAudio: audio }
         : s
     ));
@@ -131,35 +147,35 @@ export default function App() {
       });
       const result = await response.json();
       console.log("result", result);
-      
+
       // Update with AI score and set manual score to match
-      setScores(prev => prev.map(s => 
-        s.questionId === questionId 
-          ? { ...s, 
-            isSubmitting: false, 
-            aiScore: result.score, 
-            score: result.score, 
-            aiExplanation: result.explanation 
+      setScores(prev => prev.map(s =>
+        s.questionId === questionId
+          ? { ...s,
+            isSubmitting: false,
+            aiScore: result.score,
+            score: result.score,
+            aiExplanation: result.explanation
           }
           : s
       ));
-      
+
     } catch (error) {
       console.error('Error submitting audio:', error);
       // Reset submitting state on error
-      setScores(prev => prev.map(s => 
-        s.questionId === questionId 
+      setScores(prev => prev.map(s =>
+        s.questionId === questionId
           ? { ...s, isSubmitting: false }
           : s
       ));
-      alert('Error submitting audio. Please try again.');
+      alert(ERROR_SUBMITTING_AUDIO);
     }
   };
 
   const handleEndMock = () => {
     const totalScore = scores.reduce((sum, s) => sum + s.score, 0);
     const maxPossibleScore = scores.length * 5;
-    
+
     setResults({
       scores,
       totalScore,
@@ -172,7 +188,7 @@ export default function App() {
       selectedQuestions: [],
       isActive: false,
     });
-    
+
     setIsResultsModalOpen(true);
   };
 
@@ -188,27 +204,54 @@ export default function App() {
             >
               <Settings className="w-5 h-5" />
             </button>
-            <div></div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Interview Questions
+            {PAGE_TITLE}
           </h1>
           <p className="mt-2 text-gray-600">
-            Prepare for your next interview with these common questions
+            {PAGE_DISCRIPTION}
           </p>
+
           {!mockSettings.isActive && (
+            <div className="mt-6 flex justify-center gap-2">
+              <button
+                onClick={() => setActiveTab('questions')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-colors ${
+                  activeTab === 'questions'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <BookOpen className="w-5 h-5" />
+                Interview Questions
+              </button>
+              <button
+                onClick={() => setActiveTab('interviews')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-colors ${
+                  activeTab === 'interviews'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                Real Interview Data
+              </button>
+            </div>
+          )}
+
+          {!mockSettings.isActive && activeTab === 'questions' && (
             <button
               onClick={() => setIsMockModalOpen(true)}
-              className="mt-4 inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="mt-4 inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               <Clock className="w-5 h-5 mr-2" />
-              Start Mock Interview
+              {MOCK_START}
             </button>
           )}
-          {!gptToken && (
+          {!gptToken && activeTab === 'questions' && (
             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-800">
-                💡 Add your OpenAI GPT token in settings to enable AI-powered answer evaluation
+              <p className="text-base text-amber-800">
+                {GPT_ADD_HINT}
               </p>
             </div>
           )}
@@ -220,21 +263,40 @@ export default function App() {
           <ErrorMessage message={error} />
         ) : (
           <>
-            {!mockSettings.isActive && (
-              <KeywordFilter
-                keywords={keywords}
-                selectedKeyword={selectedKeyword}
-                onKeywordSelect={setSelectedKeyword}
-              />
+            {activeTab === 'questions' ? (
+              <>
+                {!mockSettings.isActive && (
+                  <KeywordFilter
+                    keywords={keywords}
+                    selectedKeyword={selectedKeyword}
+                    onKeywordSelect={setSelectedKeyword}
+                  />
+                )}
+                <QuestionList
+                  questions={filteredQuestions}
+                  isMockMode={mockSettings.isActive}
+                  gptToken={gptToken}
+                  scores={scores}
+                  onScoreChange={mockSettings.isActive ? handleScoreChange : undefined}
+                  onAudioSubmit={mockSettings.isActive ? handleAudioSubmit : undefined}
+                />
+              </>
+            ) : (
+              <>
+                <InterviewFilter
+                  positions={positions}
+                  clients={clients}
+                  selectedPosition={selectedPosition}
+                  selectedClient={selectedClient}
+                  onPositionSelect={setSelectedPosition}
+                  onClientSelect={setSelectedClient}
+                />
+                <div className="mb-4 text-sm text-gray-600">
+                  Showing {filteredInterviews.length} of {interviews.length} interview records
+                </div>
+                <InterviewList interviews={filteredInterviews} />
+              </>
             )}
-            <QuestionList 
-              questions={filteredQuestions}
-              isMockMode={mockSettings.isActive}
-              gptToken={gptToken}
-              scores={scores}
-              onScoreChange={mockSettings.isActive ? handleScoreChange : undefined}
-              onAudioSubmit={mockSettings.isActive ? handleAudioSubmit : undefined}
-            />
           </>
         )}
       </div>
