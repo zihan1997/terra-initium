@@ -9,3 +9,7 @@ ci
 app/.idea/**
 AGENTS.md
 OPENLENS_MIGRATION.md
+app/static/interview_questions/*
+!app/static/interview_questions/.gitkeep
+app/static/openlens/*
+!app/static/openlens/.gitkeep
