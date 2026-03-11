@@ -2,7 +2,7 @@ import type { Interview } from '../types/Interview';
 
 export async function loadInterviews(): Promise<Interview[]> {
   try {
-    const response = await fetch('./mian-jing.json');
+    const response = await fetch('/interview_questions/mian-jing.json');
     if (!response.ok) {
       throw new Error('Failed to load interviews');
     }

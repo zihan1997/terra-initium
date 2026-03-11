@@ -2,7 +2,7 @@ import type { Question } from '../types/Question';
 
 export async function loadQuestions(): Promise<Question[]> {
   try {
-    const response = await fetch('./InterviewQuestionList.json');
+    const response = await fetch('/interview_questions/InterviewQuestionList.json');
     if (!response.ok) {
       throw new Error('Failed to load questions');
     }
