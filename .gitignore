@@ -7,3 +7,5 @@ ci
 **/**/build
 **/**/dist
 app/.idea/**
+AGENTS.md
+OPENLENS_MIGRATION.md

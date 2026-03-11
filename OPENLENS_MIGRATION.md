@@ -12,6 +12,7 @@ Routes:
 Frontend source:
 
 - `openlens_ui/`
+- `openlens_ui/openlens.config.json` shared defaults for frontend and backend
 
 Built frontend output:
 

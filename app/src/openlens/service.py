@@ -2,6 +2,7 @@ import ipaddress
 import json
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Generator, Iterable
 from urllib.parse import urlparse
 
@@ -18,9 +19,23 @@ Requirements:
 4. Ensure the translation is fluent and natural in Chinese, avoiding awkward translation-ese.
 5. Format with clear paragraphs."""
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-DEFAULT_OLLAMA_MODEL = "minimax-m2.5"
-DEFAULT_OLLAMA_HOST = "https://ollama.com"
+OPENLENS_CONFIG_PATH = Path(__file__).resolve().parents[3] / "openlens_ui" / "openlens.config.json"
+
+
+@lru_cache
+def get_openlens_config() -> dict[str, str]:
+    if not OPENLENS_CONFIG_PATH.exists():
+        return {
+            "defaultGeminiModel": "gemini-2.5-flash",
+            "defaultOllamaModel": "minimax-m2.5",
+            "defaultOllamaHost": "https://ollama.com",
+        }
+    return json.loads(OPENLENS_CONFIG_PATH.read_text(encoding="utf-8"))
+
+
+DEFAULT_GEMINI_MODEL = get_openlens_config()["defaultGeminiModel"]
+DEFAULT_OLLAMA_MODEL = get_openlens_config()["defaultOllamaModel"]
+DEFAULT_OLLAMA_HOST = get_openlens_config()["defaultOllamaHost"]
 
 
 class OpenLensError(ValueError):

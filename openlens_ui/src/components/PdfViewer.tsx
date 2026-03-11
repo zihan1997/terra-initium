@@ -265,7 +265,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
               onTranslateRequest?.(selectedText);
               setSelectionCoords(null);
             }}
-            className="bg-accent text-white px-3 py-1.5 rounded-full shadow-xl flex items-center space-x-2 hover:bg-accent/90 transition-all active:scale-95 border border-white/20"
+            className="bg-accent text-white px-3 py-1.5 rounded-full shadow-xl flex items-center space-x-2 hover:bg-accent/90 transition-all active:scale-[0.98] border border-white/20"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span className="text-xs font-bold uppercase tracking-tighter">Translate</span>
