@@ -1,0 +1,5 @@
+{
+  "defaultGeminiModel": "gemini-2.5-flash",
+  "defaultOllamaModel": "minimax-m2.5",
+  "defaultOllamaHost": "https://ollama.com"
+}
