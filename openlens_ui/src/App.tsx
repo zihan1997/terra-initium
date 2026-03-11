@@ -34,9 +34,13 @@ export default function App() {
   const [isPdfReady, setIsPdfReady] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [sidebarWidth, setSidebarWidth] = useState<number>(500);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('sidebar_width');
+    return saved ? parseInt(saved) : 500;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
 
   // Health check state
   const [healthStatus, setHealthStatus] = useState<{ success?: boolean; message?: string }>({});
@@ -115,12 +119,15 @@ export default function App() {
     }
   };
 
-  const handleTranslate = async (overrideText?: string) => {
-    const textToTranslate = overrideText || selectedText;
-    if (!textToTranslate) return;
+  const handleTranslate = async (overrideText?: string | React.MouseEvent) => {
+    const textToTranslate = typeof overrideText === 'string' ? overrideText : selectedText;
+    if (!textToTranslate || typeof textToTranslate !== 'string' || textToTranslate.trim().length === 0) {
+      return;
+    }
     
     setIsTranslating(true);
-    setTranslation(""); // Clear previous translation
+    setTranslation("");
+    setTranslationError(null);
     
     const options: TranslationOptions = {
       provider,
@@ -132,6 +139,8 @@ export default function App() {
       await translatePhilosophicalTextStream(textToTranslate, options, (chunk) => {
         setTranslation(prev => prev + chunk);
       });
+    } catch (err: any) {
+      setTranslationError(err.message || "An unexpected error occurred during translation.");
     } finally {
       setIsTranslating(false);
     }
@@ -191,6 +200,7 @@ export default function App() {
       const newWidth = window.innerWidth - e.clientX;
       if (newWidth > 300 && newWidth < 800) {
         setSidebarWidth(newWidth);
+        localStorage.setItem('sidebar_width', newWidth.toString());
       }
     }
   }, [isResizing]);
@@ -306,7 +316,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col p-6 min-w-[300px]">
+          <div className="flex-1 flex flex-col p-6 min-w-[300px] min-h-0">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center space-x-2">
                 <div className="p-2 bg-accent/10 rounded-lg text-accent">
@@ -331,7 +341,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col space-y-6 overflow-y-auto pr-2">
+            <div className="flex-1 flex flex-col space-y-6 overflow-hidden pr-2">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center text-xs font-bold uppercase tracking-widest text-accent/40">
@@ -367,12 +377,22 @@ export default function App() {
               </div>
 
               <AnimatePresence mode="wait">
+                {translationError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-700 text-sm flex items-start space-x-2"
+                  >
+                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>{translationError}</span>
+                  </motion.div>
+                )}
                 {translation && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="space-y-2"
+                    className="space-y-2 flex-1 flex flex-col min-h-0"
                   >
                     <div className="flex items-center justify-between">
                       <div className="text-xs font-bold uppercase tracking-widest text-accent/40">
@@ -385,7 +405,7 @@ export default function App() {
                         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       </button>
                     </div>
-                    <div className="p-6 bg-accent/5 rounded-2xl border border-accent/10 serif text-xl leading-relaxed text-ink whitespace-pre-wrap">
+                    <div className="p-6 bg-accent/5 rounded-2xl border border-accent/10 serif text-xl leading-relaxed text-ink whitespace-pre-wrap overflow-y-auto flex-1 custom-scrollbar">
                       {translation}
                     </div>
                   </motion.div>
