@@ -7,6 +7,5 @@ ci
 **/**/build
 **/**/dist
 app/.idea/**
-app/.env.local
 AGENTS.md
 OPENLENS_MIGRATION.md
