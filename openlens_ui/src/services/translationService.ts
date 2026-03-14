@@ -4,6 +4,13 @@ export interface TranslationOptions {
   provider: AIProvider;
   model?: string;
   baseUrl?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
+  backgroundContext?: string;
+  previousContext?: {
+    original: string;
+    translation: string;
+  };
 }
 
 export async function checkProviderStatus(options: TranslationOptions): Promise<{ success: boolean; message: string }> {
@@ -42,6 +49,10 @@ export async function translatePhilosophicalTextStream(
         text,
         model: options.model,
         baseUrl: options.baseUrl,
+        sourceLanguage: options.sourceLanguage,
+        targetLanguage: options.targetLanguage,
+        backgroundContext: options.backgroundContext,
+        previousContext: options.previousContext,
       })
     });
 
