@@ -22,6 +22,10 @@ class TranslationRequest(BaseModel):
     text: str = Field(min_length=1, max_length=20000)
     model: str | None = Field(default=None, max_length=200)
     baseUrl: str | None = Field(default=None, max_length=500)
+    sourceLanguage: str | None = Field(default=None, max_length=100)
+    targetLanguage: str | None = Field(default=None, max_length=100)
+    backgroundContext: str | None = Field(default=None, max_length=4000)
+    previousContext: dict[str, str] | None = Field(default=None)
 
 
 router = APIRouter(
@@ -72,10 +76,25 @@ async def openlens_health(provider: str, baseUrl: str | None = None):
 async def translate_text(payload: TranslationRequest):
     try:
         if payload.provider == "gemini":
-            content = translate_with_gemini(payload.text, payload.model)
+            content = translate_with_gemini(
+                payload.text,
+                payload.model,
+                source_language=payload.sourceLanguage,
+                target_language=payload.targetLanguage,
+                background_context=payload.backgroundContext,
+                previous_context=payload.previousContext,
+            )
         else:
             validated_host = validate_ollama_host(payload.baseUrl)
-            content = translate_with_ollama(payload.text, validated_host, payload.model)
+            content = translate_with_ollama(
+                payload.text,
+                validated_host,
+                payload.model,
+                source_language=payload.sourceLanguage,
+                target_language=payload.targetLanguage,
+                background_context=payload.backgroundContext,
+                previous_context=payload.previousContext,
+            )
     except OpenLensError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except httpx.HTTPStatusError as exc:
@@ -90,10 +109,25 @@ async def translate_text(payload: TranslationRequest):
 async def stream_translation(payload: TranslationRequest):
     try:
         if payload.provider == "gemini":
-            iterator = stream_gemini_translation(payload.text, payload.model)
+            iterator = stream_gemini_translation(
+                payload.text,
+                payload.model,
+                source_language=payload.sourceLanguage,
+                target_language=payload.targetLanguage,
+                background_context=payload.backgroundContext,
+                previous_context=payload.previousContext,
+            )
         else:
             validated_host = validate_ollama_host(payload.baseUrl)
-            iterator = stream_ollama_translation(payload.text, validated_host, payload.model)
+            iterator = stream_ollama_translation(
+                payload.text,
+                validated_host,
+                payload.model,
+                source_language=payload.sourceLanguage,
+                target_language=payload.targetLanguage,
+                background_context=payload.backgroundContext,
+                previous_context=payload.previousContext,
+            )
     except OpenLensError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

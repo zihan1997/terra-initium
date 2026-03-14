@@ -1,70 +1,136 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { PdfViewer } from './components/PdfViewer';
 import { translatePhilosophicalTextStream, AIProvider, TranslationOptions, checkProviderStatus } from './services/translationService';
 import openlensConfig from '../openlens.config.json';
-import { 
-  BookOpen, 
-  Languages, 
-  History, 
-  Settings, 
-  Upload, 
+import {
+  BookOpen,
+  Languages,
+  History,
+  Settings,
+  Upload,
   Sparkles,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Quote,
   Copy,
   Check,
   Loader2,
   X,
-  Cpu,
   Globe,
   Database,
   Activity,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+type Theme = 'paper' | 'sepia' | 'dark';
+
 export default function App() {
   const [file, setFile] = useState<File | string | null>(null);
-  const [fileName, setFileName] = useState<string>("");
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [selectedText, setSelectedText] = useState<string>("");
-  const [translation, setTranslation] = useState<string>("");
-  const [isTranslating, setIsTranslating] = useState<boolean>(false);
-  const [isPdfReady, setIsPdfReady] = useState<boolean>(false);
-  const [copied, setCopied] = useState<boolean>(false);
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [fileName, setFileName] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedText, setSelectedText] = useState('');
+  const [translation, setTranslation] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const saved = localStorage.getItem('sidebar_width');
-    return saved ? parseInt(saved) : 500;
+    return saved ? parseInt(saved, 10) : 500;
   });
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isResizing, setIsResizing] = useState(false);
   const [translationError, setTranslationError] = useState<string | null>(null);
+  const [lastContext, setLastContext] = useState<{ original: string; translation: string } | null>(null);
+  const [theme, setTheme] = useState<Theme>(() => {
+    return (localStorage.getItem('app_theme') as Theme) || 'paper';
+  });
+  const translationContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Health check state
+  const [sourceLang, setSourceLang] = useState(() => localStorage.getItem('source_lang') || 'English');
+  const [targetLang, setTargetLang] = useState(() => localStorage.getItem('target_lang') || 'Chinese');
+  const [backgroundContext, setBackgroundContext] = useState(() => localStorage.getItem('background_context') || '');
+
   const [healthStatus, setHealthStatus] = useState<{ success?: boolean; message?: string }>({});
-  const [isCheckingHealth, setIsCheckingHealth] = useState<boolean>(false);
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
 
-  // AI Settings
   const [provider, setProvider] = useState<AIProvider>(() => {
     return (localStorage.getItem('ai_provider') as AIProvider) || 'gemini';
   });
-  const [ollamaModel, setOllamaModel] = useState<string>(() => {
+  const [ollamaModel, setOllamaModel] = useState(() => {
     return localStorage.getItem('ollama_model') || openlensConfig.defaultOllamaModel;
   });
-  const [cloudHost, setCloudHost] = useState<string>(() => {
+  const [cloudHost, setCloudHost] = useState(() => {
     return localStorage.getItem('cloud_host') || openlensConfig.defaultOllamaHost;
   });
+
+  const [isContextExpanded, setIsContextExpanded] = useState(false);
+  const [isSelectionExpanded, setIsSelectionExpanded] = useState(true);
+  const [isLanguageExpanded, setIsLanguageExpanded] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('source_lang', sourceLang);
+    localStorage.setItem('target_lang', targetLang);
+    localStorage.setItem('background_context', backgroundContext);
+  }, [sourceLang, targetLang, backgroundContext]);
+
+  useEffect(() => {
+    localStorage.setItem('app_theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (translationContainerRef.current) {
+      translationContainerRef.current.scrollTop = translationContainerRef.current.scrollHeight;
+    }
+  }, [translation]);
+
+  const cleanPdfText = (text: string) => {
+    return text
+      .replace(/(\w)-\n(\w)/g, '$1$2')
+      .replace(/(?<!\n)\n(?!\n)/g, ' ')
+      .trim();
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth > 300 && newWidth < window.innerWidth * 0.8) {
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      localStorage.setItem('sidebar_width', sidebarWidth.toString());
+    };
+
+    if (isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, sidebarWidth]);
 
   const handleTestConnection = async () => {
     setIsCheckingHealth(true);
     setHealthStatus({});
-    
+
     const options: TranslationOptions = {
       provider,
       model: ollamaModel,
       baseUrl: provider === 'ollama-cloud' ? cloudHost : undefined,
+      sourceLanguage: sourceLang,
+      targetLanguage: targetLang,
+      backgroundContext,
     };
 
     try {
@@ -75,22 +141,20 @@ export default function App() {
     }
   };
 
-  // Load progress from localStorage
   useEffect(() => {
     if (fileName) {
       const savedPage = localStorage.getItem(`progress_${fileName}`);
       if (savedPage) {
-        setCurrentPage(parseInt(savedPage));
+        setCurrentPage(parseInt(savedPage, 10));
       }
     }
   }, [fileName]);
 
-  // Save AI settings to localStorage
   useEffect(() => {
     localStorage.setItem('ai_provider', provider);
     localStorage.setItem('ollama_model', ollamaModel);
     localStorage.setItem('cloud_host', cloudHost);
-    setHealthStatus({}); // Reset health status when settings change
+    setHealthStatus({});
   }, [provider, ollamaModel, cloudHost]);
 
   useEffect(() => {
@@ -99,48 +163,65 @@ export default function App() {
     }
   }, [showSettings]);
 
-  // Save progress to localStorage
-  const handlePageChange = useCallback((page: number) => {
+  const handlePageChange = (page: number) => {
     setCurrentPage(page);
     if (fileName) {
       localStorage.setItem(`progress_${fileName}`, page.toString());
     }
-  }, [fileName]);
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = event.target.files?.[0];
     if (uploadedFile) {
       setFile(uploadedFile);
       setFileName(uploadedFile.name);
-      // Reset state for new book
-      setTranslation("");
-      setSelectedText("");
-      setIsPdfReady(false);
+      setTranslation('');
+      setSelectedText('');
     }
   };
 
   const handleTranslate = async (overrideText?: string | React.MouseEvent) => {
-    const textToTranslate = typeof overrideText === 'string' ? overrideText : selectedText;
+    let textToTranslate = typeof overrideText === 'string' ? overrideText : selectedText;
     if (!textToTranslate || typeof textToTranslate !== 'string' || textToTranslate.trim().length === 0) {
       return;
     }
-    
+
+    textToTranslate = cleanPdfText(textToTranslate);
+
     setIsTranslating(true);
-    setTranslation("");
+    setTranslation('');
     setTranslationError(null);
-    
+
     const options: TranslationOptions = {
       provider,
       model: ollamaModel,
       baseUrl: provider === 'ollama-cloud' ? cloudHost : undefined,
+      sourceLanguage: sourceLang,
+      targetLanguage: targetLang,
+      backgroundContext,
+      previousContext: lastContext || undefined,
     };
 
     try {
+      let isFirstChunk = true;
+      let fullTranslation = '';
       await translatePhilosophicalTextStream(textToTranslate, options, (chunk) => {
-        setTranslation(prev => prev + chunk);
+        if (isFirstChunk && chunk) {
+          setIsSelectionExpanded(false);
+          setIsContextExpanded(false);
+          setIsLanguageExpanded(false);
+          isFirstChunk = false;
+        }
+        fullTranslation += chunk;
+        setTranslation((prev) => prev + chunk);
+      });
+
+      setLastContext({
+        original: textToTranslate,
+        translation: fullTranslation,
       });
     } catch (err: any) {
-      setTranslationError(err.message || "An unexpected error occurred during translation.");
+      setTranslationError(err.message || 'An unexpected error occurred during translation.');
     } finally {
       setIsTranslating(false);
     }
@@ -151,8 +232,6 @@ export default function App() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -170,9 +249,8 @@ export default function App() {
     if (droppedFile && droppedFile.type === 'application/pdf') {
       setFile(droppedFile);
       setFileName(droppedFile.name);
-      setTranslation("");
-      setSelectedText("");
-      setIsPdfReady(false);
+      setTranslation('');
+      setSelectedText('');
     }
   };
 
@@ -180,51 +258,32 @@ export default function App() {
     if (fileName) {
       localStorage.removeItem(`progress_${fileName}`);
       setCurrentPage(1);
-      // Force re-render of PdfViewer
-      setFileName(prev => prev + " ");
-      setTimeout(() => setFileName(prev => prev.trim()), 0);
+      setFileName((prev) => prev + ' ');
+      setTimeout(() => setFileName((prev) => prev.trim()), 0);
     }
   };
 
-  const startResizing = useCallback((e: React.MouseEvent) => {
+  const startResizing = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
-  }, []);
-
-  const stopResizing = useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  const resize = useCallback((e: MouseEvent) => {
-    if (isResizing) {
-      const newWidth = window.innerWidth - e.clientX;
-      if (newWidth > 300 && newWidth < 800) {
-        setSidebarWidth(newWidth);
-        localStorage.setItem('sidebar_width', newWidth.toString());
-      }
-    }
-  }, [isResizing]);
+  };
 
   useEffect(() => {
-    window.addEventListener('mousemove', resize);
-    window.addEventListener('mouseup', stopResizing);
-    return () => {
-      window.removeEventListener('mousemove', resize);
-      window.removeEventListener('mouseup', stopResizing);
-    };
-  }, [resize, stopResizing]);
+    if (!isResizing) {
+      localStorage.setItem('sidebar_width', sidebarWidth.toString());
+    }
+  }, [isResizing, sidebarWidth]);
 
   return (
-    <div 
-      className="flex h-screen w-full bg-paper overflow-hidden relative"
+    <div
+      className="flex h-screen w-full bg-app overflow-hidden relative"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Drag Overlay */}
       <AnimatePresence>
         {isDragging && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -239,10 +298,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
       <main className="flex-1 flex h-full overflow-hidden relative">
-        
-        {/* Left: PDF Viewer */}
         <section className="flex-1 h-full p-4 md:p-6 flex flex-col overflow-hidden">
           <header className="mb-6 flex items-center justify-between border-b border-accent/10 pb-4">
             <div className="flex items-center space-x-4 min-w-0">
@@ -251,16 +307,16 @@ export default function App() {
               </div>
               <div className="min-w-0">
                 <h1 className="serif text-3xl font-semibold tracking-tight text-accent truncate max-w-[300px] md:max-w-[500px]">
-                  {fileName ? fileName.replace('.pdf', '') : "OpenLens"}
+                  {fileName ? fileName.replace('.pdf', '') : 'OpenLens'}
                 </h1>
                 <p className="text-sm text-accent/60 font-medium truncate">
-                  {fileName ? `Reading your manuscript` : "Select a philosophical text to begin"}
+                  {fileName ? 'Reading your manuscript' : 'Select a philosophical text to begin'}
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
-              <button 
+              <button
                 onClick={() => setShowSettings(true)}
                 className="p-2 hover:bg-accent/10 rounded-full text-accent transition-colors"
                 title="AI Settings"
@@ -269,26 +325,27 @@ export default function App() {
               </button>
               <label className="flex items-center space-x-2 px-4 py-2 bg-accent text-white rounded-full cursor-pointer hover:bg-accent/90 transition-all shadow-md active:scale-95">
                 <Upload className="w-4 h-4" />
-                <span className="text-sm font-medium">{file ? "Change Book" : "Open Manuscript"}</span>
+                <span className="text-sm font-medium">{file ? 'Change Book' : 'Open Manuscript'}</span>
                 <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
               </label>
             </div>
           </header>
 
-          <div className="flex-1 min-h-0 relative">
-            <PdfViewer 
+          <div className="flex-1 min-h-0 relative bg-app rounded-3xl border border-accent/10 overflow-hidden">
+            <PdfViewer
               key={fileName || 'empty'}
-              file={file} 
+              file={file}
               initialPage={currentPage}
               onPageChange={handlePageChange}
-              onTextSelect={setSelectedText}
-              onReady={setIsPdfReady}
+              onTextSelect={(text) => {
+                setSelectedText(text);
+                if (text) setIsSelectionExpanded(true);
+              }}
               onTranslateRequest={handleTranslate}
             />
           </div>
         </section>
 
-        {/* Right: AI Translation Panel */}
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className={`fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-accent text-white p-2 rounded-l-xl shadow-xl transition-all hover:pr-4 ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
@@ -297,19 +354,32 @@ export default function App() {
           <ChevronLeft className="w-6 h-6" />
         </button>
 
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+            />
+          )}
+        </AnimatePresence>
+
         <motion.section
           initial={false}
           animate={{
-            width: isSidebarOpen ? sidebarWidth : 0,
+            width: isSidebarOpen ? (window.innerWidth < 768 ? '100%' : sidebarWidth) : 0,
             opacity: isSidebarOpen ? 1 : 0,
-            x: isSidebarOpen ? 0 : 20
+            x: isSidebarOpen ? 0 : 20,
+            zIndex: window.innerWidth < 768 ? 50 : 10,
           }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="h-full bg-sepia/10 border-l border-accent/10 flex flex-col overflow-hidden relative"
+          className={`h-full bg-app border-l border-accent/10 flex flex-col overflow-hidden ${window.innerWidth < 768 ? 'fixed right-0 top-0 shadow-2xl' : 'relative'}`}
         >
           <div
             onMouseDown={startResizing}
-            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/30 transition-colors z-50 group"
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/30 transition-colors z-50 group hidden md:block"
           >
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-12 bg-accent/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <div className="w-0.5 h-6 bg-accent/40 rounded-full" />
@@ -328,10 +398,10 @@ export default function App() {
                 <div className="hidden lg:flex items-center space-x-2 px-2 py-1 bg-accent/5 rounded-full border border-accent/10">
                   <div className={`w-2 h-2 rounded-full ${provider === 'gemini' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
                   <span className="text-[10px] font-bold uppercase tracking-tighter text-accent/60">
-                    {provider === 'gemini' ? 'Gemini 3.1 Pro' : `Ollama: ${ollamaModel}`}
+                    {provider === 'gemini' ? 'Gemini' : `Ollama: ${ollamaModel}`}
                   </span>
                 </div>
-                <button 
+                <button
                   onClick={() => setIsSidebarOpen(false)}
                   className="p-1.5 hover:bg-accent/10 rounded-lg text-accent transition-colors"
                   title="Collapse Panel"
@@ -343,37 +413,173 @@ export default function App() {
 
             <div className="flex-1 flex flex-col space-y-6 overflow-hidden pr-2">
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-xs font-bold uppercase tracking-widest text-accent/40">
+                <button
+                  onClick={() => setIsLanguageExpanded(!isLanguageExpanded)}
+                  className="flex items-center justify-between w-full group"
+                >
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-accent/40 cursor-pointer group-hover:text-accent/60 transition-colors">
+                    Language Pair
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    {!isLanguageExpanded && (
+                      <span className="text-[10px] font-bold text-accent/60">
+                        {sourceLang} → {targetLang}
+                      </span>
+                    )}
+                    <div className={`transition-transform duration-200 ${isLanguageExpanded ? 'rotate-180' : ''}`}>
+                      <ChevronDown className="w-3 h-3 text-accent/30" />
+                    </div>
+                  </div>
+                </button>
+
+                <AnimatePresence>
+                  {isLanguageExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="grid grid-cols-2 gap-3 mt-1">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-accent/40 block">From</label>
+                          <select
+                            value={sourceLang}
+                            onChange={(e) => setSourceLang(e.target.value)}
+                            className="w-full p-2 bg-accent/5 border border-accent/10 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-accent/20 text-ink-app"
+                          >
+                            <option value="English">English</option>
+                            <option value="German">German</option>
+                            <option value="French">French</option>
+                            <option value="Latin">Latin</option>
+                            <option value="Greek">Greek</option>
+                            <option value="Chinese">Chinese</option>
+                            <option value="Japanese">Japanese</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-accent/40 block">To</label>
+                          <select
+                            value={targetLang}
+                            onChange={(e) => setTargetLang(e.target.value)}
+                            className="w-full p-2 bg-accent/5 border border-accent/10 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-accent/20 text-ink-app"
+                          >
+                            <option value="Chinese">Chinese</option>
+                            <option value="English">English</option>
+                            <option value="German">German</option>
+                            <option value="French">French</option>
+                            <option value="Japanese">Japanese</option>
+                          </select>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => setIsContextExpanded(!isContextExpanded)}
+                  className="flex items-center justify-between w-full group"
+                >
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-accent/40 cursor-pointer group-hover:text-accent/60 transition-colors">
+                    Background / Context
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    {!isContextExpanded && backgroundContext.trim() && (
+                      <span className="text-[9px] bg-accent/10 text-accent px-1.5 py-0.5 rounded-full font-bold">Active</span>
+                    )}
+                    <div className={`transition-transform duration-200 ${isContextExpanded ? 'rotate-180' : ''}`}>
+                      <ChevronDown className="w-3 h-3 text-accent/30" />
+                    </div>
+                  </div>
+                </button>
+
+                <AnimatePresence>
+                  {isContextExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="relative">
+                        <textarea
+                          value={backgroundContext}
+                          onChange={(e) => setBackgroundContext(e.target.value)}
+                          placeholder="e.g., Kant's Critique of Pure Reason, chapter 2..."
+                          className="w-full p-3 bg-accent/5 border border-accent/10 rounded-xl text-xs font-medium focus:outline-none focus:ring-1 focus:ring-accent/20 min-h-[80px] resize-none mt-1 pr-8 text-ink-app"
+                        />
+                        {backgroundContext && (
+                          <button
+                            onClick={() => setBackgroundContext('')}
+                            className="absolute right-2 top-3 p-1 hover:bg-accent/10 rounded-full text-accent/30 transition-colors"
+                            title="Clear Context"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => setIsSelectionExpanded(!isSelectionExpanded)}
+                  className="flex items-center justify-between w-full group"
+                >
+                  <div className="flex items-center text-xs font-bold uppercase tracking-widest text-accent/40 group-hover:text-accent/60 transition-colors">
                     <Quote className="w-3 h-3 mr-2" />
                     Selected Passage
                   </div>
-                  {selectedText && (
-                    <div className="text-[10px] font-mono text-accent/30">
-                      {selectedText.split(/\s+/).filter(Boolean).length} words
-                    </div>
-                  )}
-                </div>
-                <div className="p-4 bg-white/60 rounded-2xl border border-accent/5 serif italic text-lg leading-relaxed text-ink/80 min-h-[100px] max-h-[200px] overflow-y-auto">
-                  {selectedText || "Select text in the PDF to translate..."}
-                </div>
-
-                {selectedText && (
-                  <button
-                    onClick={() => handleTranslate()}
-                    disabled={isTranslating}
-                    className="w-full py-3 bg-accent text-white rounded-xl font-medium shadow-lg shadow-accent/20 hover:bg-accent/90 transition-all active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-50 mt-4"
-                  >
-                    {isTranslating ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>Deep Translation</span>
-                      </>
+                  <div className="flex items-center space-x-2">
+                    {!isSelectionExpanded && selectedText && (
+                      <div className="text-[10px] font-mono text-accent/30">
+                        {selectedText.split(/\s+/).filter(Boolean).length} words
+                      </div>
                     )}
-                  </button>
-                )}
+                    <div className={`transition-transform duration-200 ${isSelectionExpanded ? 'rotate-180' : ''}`}>
+                      <ChevronDown className="w-3 h-3 text-accent/30" />
+                    </div>
+                  </div>
+                </button>
+
+                <AnimatePresence>
+                  {isSelectionExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      className="overflow-hidden space-y-4"
+                    >
+                      <div className="p-4 bg-accent/5 rounded-2xl border border-accent/10 serif italic text-lg leading-relaxed text-ink-app/80 min-h-[100px] max-h-[200px] overflow-y-auto mt-1">
+                        {selectedText || 'Select text in the PDF to translate...'}
+                      </div>
+
+                      {selectedText && (
+                        <button
+                          onClick={() => handleTranslate()}
+                          disabled={isTranslating}
+                          className="w-full py-3 bg-accent text-white rounded-xl font-medium shadow-lg shadow-accent/20 hover:bg-accent/90 transition-all active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-50"
+                        >
+                          {isTranslating ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <>
+                              <Sparkles className="w-4 h-4" />
+                              <span>Deep Translation</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <AnimatePresence mode="wait">
@@ -405,8 +611,18 @@ export default function App() {
                         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       </button>
                     </div>
-                    <div className="p-6 bg-accent/5 rounded-2xl border border-accent/10 serif text-xl leading-relaxed text-ink whitespace-pre-wrap overflow-y-auto flex-1 custom-scrollbar">
-                      {translation}
+                    <div
+                      ref={translationContainerRef}
+                      className="p-6 bg-accent/5 rounded-2xl border border-accent/10 serif text-xl leading-relaxed text-ink-app overflow-y-auto flex-1 relative markdown-body custom-scrollbar"
+                    >
+                      <ReactMarkdown>{translation}</ReactMarkdown>
+                      {isTranslating && (
+                        <motion.span
+                          animate={{ opacity: [1, 0] }}
+                          transition={{ duration: 0.8, repeat: Infinity }}
+                          className="inline-block w-1.5 h-5 bg-accent ml-1 align-middle"
+                        />
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -415,7 +631,7 @@ export default function App() {
 
             <footer className="mt-6 pt-6 border-t border-accent/10">
               <div className="flex items-center justify-between text-xs text-accent/40 font-medium">
-                <span className="truncate mr-2">Powered by {provider === 'gemini' ? 'Gemini 3.1 Pro' : 'Ollama Cloud'}</span>
+                <span className="truncate mr-2">Powered by {provider === 'gemini' ? 'Gemini' : 'Ollama Cloud'}</span>
                 <div className="flex items-center space-x-1 shrink-0">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   <span>AI Scholar</span>
@@ -426,22 +642,21 @@ export default function App() {
         </motion.section>
       </main>
 
-      {/* Settings Modal */}
       <AnimatePresence>
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-card rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-accent/10"
             >
               <div className="p-6 border-b border-accent/10 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Settings className="w-5 h-5 text-accent" />
                   <h3 className="serif text-xl font-semibold">AI Settings</h3>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowSettings(false)}
                   className="p-2 hover:bg-accent/5 rounded-full text-accent/40 transition-colors"
                 >
@@ -450,20 +665,41 @@ export default function App() {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Provider Selection */}
+                <div className="space-y-3">
+                  <label className="text-xs font-bold uppercase tracking-widest text-accent/40 block">
+                    Reading Atmosphere
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'paper', name: 'Paper', bg: '#fdfcf8' },
+                      { id: 'sepia', name: 'Sepia', bg: '#f4ecd8' },
+                      { id: 'dark', name: 'Dark', bg: '#1a1a1a' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setTheme(item.id as Theme)}
+                        className={`flex flex-col items-center p-2 rounded-xl border-2 transition-all ${theme === item.id ? 'border-accent bg-accent/5' : 'border-accent/5 hover:border-accent/20'}`}
+                      >
+                        <div className="w-full h-8 rounded-md mb-1 border border-accent/10" style={{ backgroundColor: item.bg }} />
+                        <span className="text-[10px] font-bold uppercase">{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-3">
                   <label className="text-xs font-bold uppercase tracking-widest text-accent/40 block">
                     AI Service Provider
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    <button 
+                    <button
                       onClick={() => setProvider('gemini')}
                       className={`flex flex-col items-center justify-center space-y-1 p-3 rounded-xl border-2 transition-all ${provider === 'gemini' ? 'border-accent bg-accent/5 text-accent' : 'border-accent/5 hover:border-accent/20 text-accent/40'}`}
                     >
                       <Sparkles className="w-4 h-4" />
                       <span className="text-[10px] font-bold uppercase">Gemini</span>
                     </button>
-                    <button 
+                    <button
                       onClick={() => setProvider('ollama-cloud')}
                       className={`flex flex-col items-center justify-center space-y-1 p-3 rounded-xl border-2 transition-all ${provider === 'ollama-cloud' ? 'border-accent bg-accent/5 text-accent' : 'border-accent/5 hover:border-accent/20 text-accent/40'}`}
                     >
@@ -473,14 +709,13 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Ollama Cloud Config */}
                 {provider === 'ollama-cloud' && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     className="space-y-4 pt-4 border-t border-accent/5"
                   >
-                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 text-blue-800 text-[10px] leading-relaxed">
+                    <div className="p-3 bg-accent/5 rounded-xl border border-accent/10 text-ink-app text-[10px] leading-relaxed">
                       <p className="font-bold mb-1 flex items-center">
                         <Globe className="w-3 h-3 mr-1" />
                         Ollama Cloud
@@ -492,8 +727,8 @@ export default function App() {
                         <Globe className="w-3 h-3 mr-1.5" />
                         Cloud API Host
                       </label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={cloudHost}
                         onChange={(e) => setCloudHost(e.target.value)}
                         placeholder="e.g., https://ollama.com"
@@ -505,8 +740,8 @@ export default function App() {
                         <Database className="w-3 h-3 mr-1.5" />
                         Cloud Model Name
                       </label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={ollamaModel}
                         onChange={(e) => setOllamaModel(e.target.value)}
                         placeholder="e.g., minimax, gpt-oss:120b"
@@ -517,28 +752,23 @@ export default function App() {
                 )}
 
                 {provider === 'gemini' && (
-                  <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-blue-800 text-sm">
+                  <div className="p-4 bg-accent/5 rounded-2xl border border-accent/10 text-ink-app text-sm">
                     Using the server-configured <strong>Gemini</strong> connection. The API key never leaves the backend.
                   </div>
                 )}
 
-                {/* Health Check Section */}
                 <div className="pt-4 border-t border-accent/5">
-                  <button 
+                  <button
                     onClick={handleTestConnection}
                     disabled={isCheckingHealth}
                     className="w-full py-2.5 px-4 bg-accent/5 hover:bg-accent/10 text-accent rounded-xl text-sm font-bold flex items-center justify-center space-x-2 transition-all active:scale-95 disabled:opacity-50"
                   >
-                    {isCheckingHealth ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Activity className="w-4 h-4" />
-                    )}
+                    {isCheckingHealth ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
                     <span>Test Connection</span>
                   </button>
-                  
+
                   {healthStatus.message && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`mt-3 p-3 rounded-xl text-xs flex items-start space-x-2 ${healthStatus.success ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}
@@ -553,7 +783,7 @@ export default function App() {
                   )}
 
                   {fileName && (
-                    <button 
+                    <button
                       onClick={clearProgress}
                       className="w-full mt-4 py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-bold flex items-center justify-center space-x-2 transition-all active:scale-95"
                     >
@@ -565,7 +795,7 @@ export default function App() {
               </div>
 
               <div className="p-6 bg-accent/5 flex justify-end">
-                <button 
+                <button
                   onClick={() => setShowSettings(false)}
                   className="px-6 py-2 bg-accent text-white rounded-xl font-medium hover:bg-accent/90 transition-all active:scale-95 shadow-lg shadow-accent/10"
                 >

@@ -11,14 +11,6 @@ from google import genai
 from google.genai import types
 
 
-SYSTEM_PROMPT = """Translate the following scholarly or philosophical text into Chinese.
-Requirements:
-1. Use precise academic, psychological, or philosophical terminology appropriate for the context.
-2. Maintain the scholarly tone, elegance, and depth of the original text.
-3. Provide a brief explanation for extremely complex or culture-specific terms if necessary.
-4. Ensure the translation is fluent and natural in Chinese, avoiding awkward translation-ese.
-5. Format with clear paragraphs."""
-
 OPENLENS_CONFIG_PATH = Path(__file__).resolve().parents[3] / "openlens_ui" / "openlens.config.json"
 
 
@@ -113,24 +105,81 @@ def ollama_headers() -> dict[str, str]:
     }
 
 
-def translate_with_gemini(text: str, model: str | None = None) -> str:
+def build_system_prompt(
+    source_language: str | None = None,
+    target_language: str | None = None,
+    background_context: str | None = None,
+    previous_context: dict[str, str] | None = None,
+) -> str:
+    source = source_language or "the original language"
+    target = target_language or "Chinese"
+    background = f"\nBackground/Context: {background_context}" if background_context else ""
+
+    context = ""
+    if previous_context:
+        original = previous_context.get("original", "").strip()
+        translation = previous_context.get("translation", "").strip()
+        if original and translation:
+            context = (
+                "\n\nFor continuity, here is the previous segment translated:"
+                f'\nOriginal: "{original}"'
+                f'\nTranslation: "{translation}"'
+                "\nPlease ensure terminology and style consistency with this previous segment."
+            )
+
+    return (
+        f"Translate the following scholarly or philosophical text from {source} into {target}."
+        f"{background}{context}\nRequirements:\n"
+        "1. Use precise academic, psychological, or philosophical terminology appropriate for the context.\n"
+        "2. Maintain the scholarly tone, elegance, and depth of the original text.\n"
+        "3. Provide a brief explanation for extremely complex or culture-specific terms if necessary.\n"
+        f"4. Ensure the translation is fluent and natural in {target}, avoiding awkward translation-ese.\n"
+        "5. Format with clear paragraphs."
+    )
+
+
+def translate_with_gemini(
+    text: str,
+    model: str | None = None,
+    source_language: str | None = None,
+    target_language: str | None = None,
+    background_context: str | None = None,
+    previous_context: dict[str, str] | None = None,
+) -> str:
     response = get_gemini_client().models.generate_content(
         model=model or DEFAULT_GEMINI_MODEL,
         contents=text,
         config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
+            system_instruction=build_system_prompt(
+                source_language=source_language,
+                target_language=target_language,
+                background_context=background_context,
+                previous_context=previous_context,
+            ),
             temperature=0.2,
         ),
     )
     return response.text or ""
 
 
-def stream_gemini_translation(text: str, model: str | None = None) -> Iterable[str]:
+def stream_gemini_translation(
+    text: str,
+    model: str | None = None,
+    source_language: str | None = None,
+    target_language: str | None = None,
+    background_context: str | None = None,
+    previous_context: dict[str, str] | None = None,
+) -> Iterable[str]:
     stream = get_gemini_client().models.generate_content_stream(
         model=model or DEFAULT_GEMINI_MODEL,
         contents=text,
         config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
+            system_instruction=build_system_prompt(
+                source_language=source_language,
+                target_language=target_language,
+                background_context=background_context,
+                previous_context=previous_context,
+            ),
             temperature=0.2,
         ),
     )
@@ -139,21 +188,54 @@ def stream_gemini_translation(text: str, model: str | None = None) -> Iterable[s
             yield chunk.text
 
 
-def _ollama_payload(text: str, model: str | None) -> dict:
+def _ollama_payload(
+    text: str,
+    model: str | None,
+    source_language: str | None = None,
+    target_language: str | None = None,
+    background_context: str | None = None,
+    previous_context: dict[str, str] | None = None,
+) -> dict:
     return {
         "model": model or DEFAULT_OLLAMA_MODEL,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "system",
+                "content": build_system_prompt(
+                    source_language=source_language,
+                    target_language=target_language,
+                    background_context=background_context,
+                    previous_context=previous_context,
+                ),
+            },
             {"role": "user", "content": f"Text: {text}"},
         ],
     }
 
 
-def translate_with_ollama(text: str, host: str, model: str | None = None) -> str:
+def translate_with_ollama(
+    text: str,
+    host: str,
+    model: str | None = None,
+    source_language: str | None = None,
+    target_language: str | None = None,
+    background_context: str | None = None,
+    previous_context: dict[str, str] | None = None,
+) -> str:
     response = httpx.post(
         f"{host}/api/chat",
         headers=ollama_headers(),
-        json={**_ollama_payload(text, model), "stream": False},
+        json={
+            **_ollama_payload(
+                text,
+                model,
+                source_language=source_language,
+                target_language=target_language,
+                background_context=background_context,
+                previous_context=previous_context,
+            ),
+            "stream": False,
+        },
         timeout=120,
     )
     response.raise_for_status()
@@ -161,12 +243,30 @@ def translate_with_ollama(text: str, host: str, model: str | None = None) -> str
     return body.get("message", {}).get("content", "")
 
 
-def stream_ollama_translation(text: str, host: str, model: str | None = None) -> Generator[str, None, None]:
+def stream_ollama_translation(
+    text: str,
+    host: str,
+    model: str | None = None,
+    source_language: str | None = None,
+    target_language: str | None = None,
+    background_context: str | None = None,
+    previous_context: dict[str, str] | None = None,
+) -> Generator[str, None, None]:
     with httpx.stream(
         "POST",
         f"{host}/api/chat",
         headers=ollama_headers(),
-        json={**_ollama_payload(text, model), "stream": True},
+        json={
+            **_ollama_payload(
+                text,
+                model,
+                source_language=source_language,
+                target_language=target_language,
+                background_context=background_context,
+                previous_context=previous_context,
+            ),
+            "stream": True,
+        },
         timeout=120,
     ) as response:
         response.raise_for_status()
