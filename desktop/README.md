@@ -17,6 +17,16 @@ cd /Users/zihanwang/Documents/hobby/terra-initium/desktop
 npm install
 ```
 
+Build the integrated OpenLens frontend bundle:
+
+```bash
+cd /Users/zihanwang/Documents/hobby/terra-initium/openlens_ui
+npm install
+npm run build:terra
+```
+
+Then return to `desktop/`.
+
 Set up the backend Python environment the first time:
 
 ```bash
