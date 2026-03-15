@@ -4,7 +4,7 @@ This folder contains the first Electron wrapper for running the integrated app a
 
 Current scope:
 
-- start the existing FastAPI backend from `../app`
+- start a desktop-local Node server inside Electron
 - load the integrated OpenLens route at `/openlens`
 - keep all desktop-specific code isolated inside `desktop/`
 
@@ -27,27 +27,28 @@ npm run build:terra
 
 Then return to `desktop/`.
 
-Set up the backend Python environment the first time:
-
-```bash
-npm run setup:backend
-```
-
 Then start the Electron shell:
 
 ```bash
 npm run dev
 ```
 
+To build a Windows installer from a Windows machine:
+
+```bash
+npm run build:win
+```
+
 The launcher will:
 
 1. load environment variables from `../.env.local` if present
-2. try to start the backend from `../app`
-3. wait for `http://127.0.0.1:8000/openlens`
+2. start a desktop-local Node server
+3. wait for `http://127.0.0.1:8364/openlens`
 4. open the Electron window
 
 ## Notes
 
-- This is a bootstrap only. Packaging, icons, installers, and Windows-specific bundling are not set up yet.
-- The preferred interpreter is `app/.venv/bin/python` on macOS/Linux and `app/.venv/Scripts/python.exe` on Windows, with `python3` / `python` fallback.
-- If the backend fails to launch because `uvicorn` or other Python packages are missing, run `npm run setup:backend` from this folder.
+- Basic Windows installer packaging is set up, but icons, signing, and release polish are not done yet.
+- The desktop path no longer depends on the Python/FastAPI backend.
+- The desktop server uses the same `.env.local` keys for Gemini and Ollama access.
+- In packaged mode, place `.env.local` next to the installed executable if you want local desktop credentials/config.

@@ -1,119 +1,45 @@
 const { app, BrowserWindow, dialog } = require('electron');
-const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
+const { createDesktopServer } = require('../server/openlens-server');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
-const APP_DIR = path.join(ROOT_DIR, 'app');
-const ENV_PATH = path.join(ROOT_DIR, '.env.local');
-const DEFAULT_PORT = 8000;
+const DEFAULT_PORT = 8364;
 const OPENLENS_URL = `http://127.0.0.1:${DEFAULT_PORT}/openlens`;
 
-let backendProcess = null;
+let backendServer = null;
 let mainWindow = null;
 let shuttingDown = false;
 
-function candidateCommand(candidate) {
-  if (candidate === 'py') {
+function runtimePaths() {
+  if (app.isPackaged) {
     return {
-      command: 'py',
-      args: ['-3', '-m', 'uvicorn', 'src.main:app', '--host', '127.0.0.1', '--port', String(DEFAULT_PORT)],
+      envCandidates: [
+        path.join(path.dirname(process.execPath), '.env.local'),
+        path.join(process.resourcesPath, '.env.local'),
+      ],
+      openlensStaticDir: path.join(process.resourcesPath, 'openlens_static'),
+      openlensConfigPath: path.join(process.resourcesPath, 'openlens.config.json'),
     };
   }
 
   return {
-    command: candidate,
-    args: ['-m', 'uvicorn', 'src.main:app', '--host', '127.0.0.1', '--port', String(DEFAULT_PORT)],
+    envCandidates: [
+      path.join(ROOT_DIR, '.env.local'),
+    ],
+    openlensStaticDir: path.join(ROOT_DIR, 'app', 'static', 'openlens'),
+    openlensConfigPath: path.join(ROOT_DIR, 'openlens_ui', 'openlens.config.json'),
   };
 }
 
 function loadEnvFile() {
-  if (!fs.existsSync(ENV_PATH)) {
-    return {};
-  }
-
-  const parsed = dotenv.parse(fs.readFileSync(ENV_PATH));
-  return parsed;
-}
-
-function pythonCandidates() {
-  const windows = process.platform === 'win32';
-  const candidates = windows
-    ? [
-        path.join(APP_DIR, '.venv', 'Scripts', 'python.exe'),
-        'py',
-        'python',
-      ]
-    : [
-        path.join(APP_DIR, '.venv', 'bin', 'python'),
-        'python3',
-        'python',
-      ];
-
-  return candidates;
-}
-
-function spawnBackend() {
-  const env = {
-    ...process.env,
-    ...loadEnvFile(),
-  };
-
-  const candidates = pythonCandidates();
-  let lastError = null;
-
-  const startupErrors = [];
-
-  for (const candidate of candidates) {
-    try {
-      const { command, args } = candidateCommand(candidate);
-
-      const child = spawn(command, args, {
-        cwd: APP_DIR,
-        env,
-        stdio: 'pipe',
-      });
-
-      let bootOutput = '';
-
-      child.stdout.on('data', (chunk) => {
-        bootOutput += chunk.toString();
-        process.stdout.write(`[backend] ${chunk}`);
-      });
-
-      child.stderr.on('data', (chunk) => {
-        bootOutput += chunk.toString();
-        process.stderr.write(`[backend] ${chunk}`);
-      });
-
-      child.on('exit', (code, signal) => {
-        startupErrors.push(
-          `${command} ${args.join(' ')} -> ${signal ? `signal ${signal}` : `code ${code}`}\n${bootOutput.trim()}`
-        );
-
-        if (shuttingDown) {
-          return;
-        }
-
-        const reason = signal ? `signal ${signal}` : `code ${code}`;
-        dialog.showErrorBox(
-          'Backend Stopped',
-          `The local backend exited unexpectedly with ${reason}.\n\n${bootOutput.trim() || 'No backend output was captured.'}\n\nIf dependencies are missing, run:\ncd desktop && npm run setup:backend`
-        );
-        app.quit();
-      });
-
-      backendProcess = child;
-      return;
-    } catch (error) {
-      lastError = error;
-      startupErrors.push(`${candidate}: ${error.message}`);
+  for (const envPath of runtimePaths().envCandidates) {
+    if (fs.existsSync(envPath)) {
+      return dotenv.parse(fs.readFileSync(envPath));
     }
   }
-
-  const details = startupErrors.join('\n\n');
-  throw lastError || new Error(`Could not start the backend process.\n\n${details}`);
+  return {};
 }
 
 async function waitForServer(url, timeoutMs = 20000) {
@@ -155,13 +81,14 @@ function createWindow() {
 
 async function bootstrap() {
   try {
-    spawnBackend();
+    Object.assign(process.env, loadEnvFile());
+    backendServer = await createDesktopServer(DEFAULT_PORT, runtimePaths());
     await waitForServer(OPENLENS_URL);
     createWindow();
   } catch (error) {
     dialog.showErrorBox(
       'OpenLens Desktop Failed to Start',
-      `${error.message}\n\nMake sure Python dependencies are installed for the backend and that port ${DEFAULT_PORT} is available.\n\nIf this is the first run, use:\ncd desktop && npm run setup:backend`
+      `${error.message}\n\nMake sure the OpenLens frontend bundle has been built and that port ${DEFAULT_PORT} is available.\n\nBuild first with:\ncd openlens_ui && npm install && npm run build:terra`
     );
     app.quit();
   }
@@ -170,12 +97,12 @@ async function bootstrap() {
 function stopBackend() {
   shuttingDown = true;
 
-  if (!backendProcess) {
+  if (!backendServer) {
     return;
   }
 
-  backendProcess.kill();
-  backendProcess = null;
+  backendServer.close();
+  backendServer = null;
 }
 
 app.whenReady().then(bootstrap);
