@@ -1,0 +1,17 @@
+{
+  "name": "terra-initium-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Electron wrapper for the integrated Terra Initium app",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "electron .",
+    "setup:backend": "node scripts/setup-backend.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "electron": "^37.2.6"
+  }
+}
