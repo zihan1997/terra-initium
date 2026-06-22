@@ -1,0 +1,53 @@
+{
+  "name": "terra-initium-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Electron wrapper for the integrated Terra Initium app",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "electron .",
+    "build:win": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@google/genai": "^1.38.0",
+    "express": "^4.21.2",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.0.12",
+    "electron": "^37.2.6"
+  },
+  "build": {
+    "appId": "com.zihan1997.terra-initium.openlens",
+    "productName": "OpenLens Desktop",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "server/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../app/static/openlens",
+        "to": "openlens_static"
+      },
+      {
+        "from": "../openlens_ui/openlens.config.json",
+        "to": "openlens.config.json"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

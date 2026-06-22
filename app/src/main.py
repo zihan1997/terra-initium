@@ -18,11 +18,12 @@ app.include_router(mock_interview_router)
 app.include_router(openlens_router)
 
 """ Static files """
-app.mount(
-    "/assets",
-    StaticFiles(directory=ASSERTS_PATH),
-    name="assets"
-)
+if ASSERTS_PATH.exists():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=ASSERTS_PATH),
+        name="assets"
+    )
 if OPENLENS_ASSETS_PATH.exists():
     app.mount(
         "/openlens/assets",

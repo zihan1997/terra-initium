@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:terra": "vite build && rm -rf ../app/static/openlens && mkdir -p ../app/static/openlens && cp -R dist/. ../app/static/openlens/",
+    "build:terra": "vite build && node scripts/build-terra.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
