@@ -13,3 +13,13 @@ app/static/interview_questions/*
 !app/static/interview_questions/.gitkeep
 app/static/openlens/*
 !app/static/openlens/.gitkeep
+
+# Local secrets. Keep .env.example as the tracked template.
+.env*
+!.env.example
+
+# Interview question banks are supplied at runtime and must not be committed.
+/data/
+app/static/InterviewQuestionList.json
+app/static/mian-jing.json
+ui/InterviewQuestionList.json

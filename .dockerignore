@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+data
+app/static/InterviewQuestionList.json
+app/static/mian-jing.json
+ui/InterviewQuestionList.json
+**/node_modules
