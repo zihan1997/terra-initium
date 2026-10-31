@@ -1,6 +1,13 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-from src.constants import ENTRY_POINT_INTERVIEW_QUESTIONS_PATH, INTERVIEW_QUESTIONS_PATH, INTERVIEW_REAL_QUESTIONS_PATH
+from src.constants import (
+    ENTRY_POINT_INTERVIEW_QUESTIONS_PATH,
+    INTERVIEW_QUESTION_LIST_NAME,
+    INTERVIEW_REAL_QUESTIONS_NAME,
+    interview_data_dir,
+    interview_questions_path,
+    interview_real_questions_path,
+)
 from src.interview_questions.auth import authorize_from_query, is_authorized
 
 router = APIRouter(
@@ -56,16 +63,31 @@ def _require_access(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Access denied.")
 
 
+def _data_file(path) -> None:
+    if path.is_file():
+        return
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            f"Interview data file '{path.name}' is not available. "
+            "Place InterviewQuestionList.json and mian-jing.json in the interview data directory "
+            "(INTERVIEW_DATA_DIR, or the default data/interview directory) and restart the server."
+        ),
+    )
+
+
 @router.get('/InterviewQuestionList.json')
 async def serve_question_list(request: Request):
     _require_access(request)
-    json_path = INTERVIEW_QUESTIONS_PATH
+    json_path = interview_questions_path()
+    _data_file(json_path)
     return FileResponse(json_path, media_type="application/json")
 
 @router.get('/mian-jing.json')
 async def serve_real_question_list(request: Request):
     _require_access(request)
-    json_path = INTERVIEW_REAL_QUESTIONS_PATH
+    json_path = interview_real_questions_path()
+    _data_file(json_path)
     return FileResponse(json_path, media_type="application/json")
 
 @router.get("", response_class=HTMLResponse)
@@ -90,4 +112,9 @@ async def access_check(request: Request):
 @router.get("/_health")
 async def interview_questions_health():
     index_path = ENTRY_POINT_INTERVIEW_QUESTIONS_PATH
-    return {"index_exists": index_path.exists()}
+    data_dir = interview_data_dir()
+    return {
+        "index_exists": index_path.exists(),
+        "question_list_exists": (data_dir / INTERVIEW_QUESTION_LIST_NAME).is_file(),
+        "real_questions_exists": (data_dir / INTERVIEW_REAL_QUESTIONS_NAME).is_file(),
+    }

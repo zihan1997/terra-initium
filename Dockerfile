@@ -27,5 +27,7 @@ COPY app ./
 COPY --from=interview-ui-builder /build/app/static/interview_questions ./static/interview_questions
 COPY --from=openlens-ui-builder /build/app/static/openlens ./static/openlens
 
+# Question banks are not part of this image. Mount them at /data/interview
+# (or set INTERVIEW_DATA_DIR) when running the container.
 EXPOSE 8000
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
